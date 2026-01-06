@@ -1,0 +1,10 @@
+Package: RSVVOI
+Title: Value of Information for RSV Trials
+Version: 0.0.1
+Authors@R: 
+    person("Michael", "Dymock", , "michael.dymock@thekids.org.au", role = c("aut", "cre"))
+Description: This package contains cost-effectiveness analyses comparing RSV prevention strategies, trial simulations and value of information estimates for trial designs.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
