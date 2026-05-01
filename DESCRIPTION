@@ -10,5 +10,6 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Import:
   RSVModels
+  nleqslv
 Remotes:
   michaeldymock25/RSVModels
