@@ -15,7 +15,7 @@ sim_trial(N, p_alloc, p_k, priors, exact = TRUE)
 
 \item{priors}{Prior distribution hyperparameters. Must be a matrix with rows for the hyperparameters "a" and "b", and columns for the arms.}
 
-\item{exact}{Logical. If set to TRUE then the total sample size will be split across the arms according to the proportions defined by p_alloc (equivalent to a blocked design). If set to FALSE then allocations are generated dynamically (i.e., without blocking) and risks imbalance. Default is TRUE.}
+\item{exact}{Logical. If set to TRUE, then the total sample size will be split across the arms according to the proportions defined by p_alloc (equivalent to a blocked design). If set to FALSE then allocations are generated dynamically (i.e., without blocking) and risks imbalance. Default is TRUE.}
 }
 \value{
 Matrix of updated hyperparameters with the same dimension names as the input priors.

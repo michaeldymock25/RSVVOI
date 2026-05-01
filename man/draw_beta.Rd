@@ -12,7 +12,7 @@ draw_beta(pars, N_draw)
 \item{N_draw}{Number of samples to draw.}
 }
 \value{
-Matrix containing N_draw samples drawn (rows) for each arm (columns).
+Matrix containing N_draw samples (rows) for each arm (columns).
 }
 \description{
 Draws samples from the Beta distribution given a set of hyperparameters.

@@ -67,7 +67,7 @@ burn_trans_model <- function(N_draw, trans_parms, seed = NULL, burn_time = 6000,
 #' @param years Number of years to run the model.
 #' @param batch_size Size of each batch for parallel simulations. Default is 100.
 #' @param ncores Number of cores to run in parallel. Default is one.
-#' @return
+#' @return Incidence aggregated by year.
 #' @rdname run_trans_model
 #' @export
 run_trans_model <- function(N_draw, y0, mod, trans_parms, years, batch_size = 100, ncores = 1){

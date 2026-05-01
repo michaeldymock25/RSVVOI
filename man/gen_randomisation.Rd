@@ -11,7 +11,7 @@ gen_randomisation(N, p_alloc, exact)
 
 \item{p_alloc}{Allocation probabilities for each arm. Must be a vector of values between zero and one, and must sum to one.}
 
-\item{exact}{Logical. If set to TRUE then the total sample size will be split across the arms according to the proportions defined by p_alloc (equivalent to a blocked design). If set to FALSE then allocations are generated dynamically (i.e., without blocking) and risks imbalance.}
+\item{exact}{Logical. If set to TRUE, then the total sample size will be split across the arms according to the proportions defined by p_alloc (equivalent to a blocked design). If set to FALSE then allocations are generated dynamically (i.e., without blocking) and risks imbalance.}
 }
 \value{
 Vector of arm allocations of length N.
