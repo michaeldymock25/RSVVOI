@@ -38,20 +38,22 @@ gen_trans_parms <- function(N_draw, seed = NULL, path = ".", save_output = FALSE
 #' @description Runs the base transmission model for a set burn-in period.
 #' @param N_draw Number of simulated runs.
 #' @param trans_parms Transmission model parameters.
-#' @param seed Optional seed for replication. Default is NULL.
 #' @param burn_time Number of months to burn-in model. Default is 6000 (equivalent to 500 years).
-#' @param batch_size Size of each batch for parallel simulations. Default is 100.
+#' @param burn_batch_size Size of each burn_time batch to run in parallel. Default is 100. Reduce to manage memory workload.
 #' @param ncores Number of cores to run in parallel. Default is one.
 #' @param path Path to the location of the Data and Parameters folders. Default is "." and may be used if the function is run inside the package.
 #' @param save_output Logical. If set to TRUE, then the generated distributions will be saved into the Parameters folder. Default is FALSE.
 #' @return Array of estimated model states after burn-in to use as initial values.
 #' @rdname burn_trans_model
 #' @export
-burn_trans_model <- function(N_draw, trans_parms, seed = NULL, burn_time = 6000, batch_size = 100, ncores = 1, path = ".", save_output = FALSE){
-  if(!is.null(seed)) set.seed(seed)
-  y0 <- initial_values(mod = "base", size_months = trans_parms$size_months, N_sim = N_draw)
-  y0_burn <- mod_base(y0 = y0, max_time = burn_time, parms = trans_parms, N_sim = N_draw, batch_size = batch_size, ncores = ncores)
-  y0_burn <- y0_burn[,burn_time,,]
+burn_trans_model <- function(N_draw, trans_parms, burn_time = 6000, burn_batch_size = 100, ncores = 1, path = ".", save_output = FALSE){
+  N_burn_batch <- ceiling(burn_time/burn_batch_size)
+  burn_batch_lens <- sapply(1:N_burn_batch, function(i) ifelse(i < N_burn_batch, burn_batch_size, burn_time - (N_burn_batch - 1)*burn_batch_size))
+  y0_burn <- initial_values(mod = "base", size_months = trans_parms$size_months, N_sim = N_draw)
+  for(i in 1:N_burn_batch){
+    y0_burn <- mod_base(y0 = y0_burn, max_time = burn_batch_lens[i], parms = trans_parms, N_sim = N_draw, batch_size = N_draw/ncores, ncores = ncores)
+    y0_burn <- y0_burn[,burn_batch_lens[i],,]
+  }
   y0_burn[,,5] <- 0
   if(save_output) saveRDS(y0_burn, paste0(path, "/Parameters/y0_burn.rds"))
   return(y0_burn)

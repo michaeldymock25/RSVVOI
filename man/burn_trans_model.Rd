@@ -7,9 +7,8 @@
 burn_trans_model(
   N_draw,
   trans_parms,
-  seed = NULL,
   burn_time = 6000,
-  batch_size = 100,
+  burn_batch_size = 100,
   ncores = 1,
   path = ".",
   save_output = FALSE
@@ -20,11 +19,9 @@ burn_trans_model(
 
 \item{trans_parms}{Transmission model parameters.}
 
-\item{seed}{Optional seed for replication. Default is NULL.}
-
 \item{burn_time}{Number of months to burn-in model. Default is 6000 (equivalent to 500 years).}
 
-\item{batch_size}{Size of each batch for parallel simulations. Default is 100.}
+\item{burn_batch_size}{Size of each burn_time batch to run in parallel. Default is 100. Reduce to manage memory workload.}
 
 \item{ncores}{Number of cores to run in parallel. Default is one.}
 
