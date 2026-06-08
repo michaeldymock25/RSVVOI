@@ -49,9 +49,9 @@ gen_trans_parms <- function(N_draw, seed = NULL, path = ".", save_output = FALSE
 burn_trans_model <- function(N_draw, trans_parms, burn_time = 6000, burn_batch_size = 100, ncores = 1, path = ".", save_output = FALSE){
   N_burn_batch <- ceiling(burn_time/burn_batch_size)
   burn_batch_lens <- sapply(1:N_burn_batch, function(i) ifelse(i < N_burn_batch, burn_batch_size, burn_time - (N_burn_batch - 1)*burn_batch_size))
-  y0_burn <- initial_values(mod = "base", size_months = trans_parms$size_months, N_sim = N_draw)
+  y0_burn <- RSVModels::initial_values(mod = "base", size_months = trans_parms$size_months, N_sim = N_draw)
   for(i in 1:N_burn_batch){
-    y0_burn <- mod_base(y0 = y0_burn, max_time = burn_batch_lens[i], parms = trans_parms, N_sim = N_draw, batch_size = N_draw/ncores, ncores = ncores)
+    y0_burn <- RSVModels::mod_base(y0 = y0_burn, max_time = burn_batch_lens[i], parms = trans_parms, N_sim = N_draw, batch_size = N_draw/ncores, ncores = ncores)
     y0_burn <- y0_burn[,burn_batch_lens[i],,]
     gc()
   }
@@ -73,6 +73,7 @@ burn_trans_model <- function(N_draw, trans_parms, burn_time = 6000, burn_batch_s
 #' @export
 run_trans_models <- function(N_draw, y0, trans_parms, years, ncores = 1){
   y0 <- y0[1:N_draw,,]
+  mod_funs <- list(base = RSVModels::mod_base, vax = RSVModels::mod_vax, mab = RSVModels::mod_mab)
   out <- lapply(c("base", "vax", "mab"), function(mod){
     if(mod == "base"){
       y0_tmp <- y0
@@ -81,8 +82,7 @@ run_trans_models <- function(N_draw, y0, trans_parms, years, ncores = 1){
       y0_tmp <- array(data = 0, dim = c(N_draw, 75, 6))
       y0_tmp[,,c(1:4, 6)] <- y0_old
     }
-    mod_f <- match.fun(paste0("mod_", mod))
-    mod_out <- mod_f(y0 = y0_tmp, max_time = years*12, parms = trans_parms, N_sim = N_draw, batch_size = N_draw/ncores, ncores = ncores)
+    mod_out <- mod_funs[[mod]](y0 = y0_tmp, max_time = years*12, parms = trans_parms, N_sim = N_draw, batch_size = N_draw/ncores, ncores = ncores)
     inc <- aperm(apply(apply(mod_out[,,,"Incidence"], c(1,2,3), sum), c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))), c(2, 1, 3))
     dimnames(inc) <- list("simulation" = dimnames(inc)[[1]], "year" = paste("year", 1:years), "age" = dimnames(inc)[[3]])
     if(mod == "base"){

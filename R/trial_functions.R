@@ -170,7 +170,7 @@ gen_data <- function(N_draw, N, p_alloc, p_d, exact = TRUE){
 #' @export
 upt_posterior <- function(n, y, alpha, hyper_parms, OR, N_draw, MCMC = TRUE, nchains = 8){
   if(MCMC){
-    mod <- cmdstan_model("Models/RSV_statistical_model.stan")
+    mod <- cmdstanr::cmdstan_model("Models/RSV_statistical_model.stan")
     stan_dat <- list(n = n,
                      y = y,
                      alpha = alpha,

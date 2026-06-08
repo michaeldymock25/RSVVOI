@@ -26,7 +26,7 @@ evppi <- function(INMB, psa, model){
   EVPPI <- vector(length = length(INMB))
   for(i in 1:length(INMB)){
     INMB_partial[[i]][,1] <- 0
-    for(d in 2:D) INMB_partial[[i]][,d] <- gam(update(formula(INMB[[i]][,d] ~ .), formula(paste(".~", model))), data = as.data.frame(psa))$fitted
+    for(d in 2:D) INMB_partial[[i]][,d] <- mgcv::gam(stats::update(stats::formula(INMB[[i]][,d] ~ .), stats::formula(paste(".~", model))), data = as.data.frame(psa))$fitted
     EVPPI[i] <- mean(apply(INMB_partial[[i]], 1, max)) - max(colMeans(INMB_partial[[i]]))
   }
   names(INMB_partial) <- names(INMB)
@@ -51,7 +51,7 @@ prep_dat_evsi <- function(p_d, N, p_alloc, MM = FALSE, Q = NULL, exact = TRUE){
   if(MM){
     p_d_tmp <- do.call(cbind, p_d)
     colnames(p_d_tmp) <- paste0(colnames(p_d_tmp), rep(c("_MA", "_HP"), each = 3))
-    p_d_tmp <- gen.quantiles(parameter = colnames(p_d_tmp), param.mat = p_d_tmp, Q = Q)
+    p_d_tmp <- EVSI::gen.quantiles(parameter = colnames(p_d_tmp), param.mat = p_d_tmp, Q = Q)
     p_d <- list("MA" = as.matrix(p_d_tmp[,c("p_NS_MA", "p_MV_MA", "p_mAbs_MA")]), "HP" = as.matrix(p_d_tmp[,c("p_NS_HP", "p_MV_HP", "p_mAbs_HP")]))
   }
   dat <- gen_data(N_draw = unique(sapply(p_d, nrow)), N = N, p_alloc = p_alloc, p_d = p_d, exact = exact)
@@ -76,7 +76,7 @@ prep_dat_evsi <- function(p_d, N, p_alloc, MM = FALSE, Q = NULL, exact = TRUE){
 #' @param hyper_parms Hyperparameters. Must be a named list ("NS", "MV", "mAbs") with named elements ("a", "b") for "NS" and ("mu", "sigma") for "MV" and "mAbs". Only required for the moment matching method. Default is NULL.
 #' @param OR Logical. If set to TRUE, the odds ratio model will be used. Otherwise, the relative risk model will be used. Only required for the moment matching method. Default is TRUE.
 #' @param MCMC Logical. If set to TRUE, posterior will be estimated using Markov Chain Monte-Carlo. Otherwise, a Laplace approximation will be used (not currently available).  Only required for the moment matching method. Default is TRUE.
-#' @param nchains Number of chains to run in parallel. Only required for the moment matching method. Default is eight.
+#' @param ncores Number of cores to utilise. Will be used to determine the number of chains to run in parallel. Only required for the moment matching method. Default is ten.
 #' @param trans_parms Transmission model parameters. Only required for the moment matching method. Default is NULL.
 #' @param y0_burn Array of initial values for the transmission models. Must be of dimension c(N_draw, 75 (age groups), 5 (SEIR + 1)). Only required for the moment matching method. Default is NULL.
 #' @param years Number of years to run the transmission models. Only required for the moment matching method. Default is NULL.
@@ -87,7 +87,7 @@ prep_dat_evsi <- function(p_d, N, p_alloc, MM = FALSE, Q = NULL, exact = TRUE){
 #' @return Expected value of sample information
 #' @rdname evsi
 #' @export
-evsi <- function(INMB, dat, method = "NP", model = NULL, alpha = NULL, hyper_parms = NULL, OR = TRUE, MCMC = TRUE, nchains = 8,
+evsi <- function(INMB, dat, method = "NP", model = NULL, alpha = NULL, hyper_parms = NULL, OR = TRUE, MCMC = TRUE, ncores = 10,
                  trans_parms = NULL, y0_burn = NULL, years = NULL, cea_parms = NULL, WTP = NULL, ref = "NS", INMB_partial = NULL){
   N_draw <- unique(sapply(INMB, nrow))
   D <- unique(sapply(INMB, ncol))
@@ -97,7 +97,7 @@ evsi <- function(INMB, dat, method = "NP", model = NULL, alpha = NULL, hyper_par
     for(i in 1:length(INMB)){
       g_hat <- matrix(data = NA, nrow = N_draw, ncol = D)
       g_hat[,1] <- 0
-      for(d in 2:D) g_hat[,d] <- gam(update(formula(INMB[[i]][,d] ~ .), formula(paste(".~", model))), data = as.data.frame(dat))$fitted
+      for(d in 2:D) g_hat[,d] <- mgcv::gam(stats::update(stats::formula(INMB[[i]][,d] ~ .), stats::formula(paste(".~", model))), data = as.data.frame(dat))$fitted
       EVSI[i] <- mean(apply(g_hat, 1, max)) - max(colMeans(g_hat))
     }
   } else if(method == "MM"){
@@ -106,11 +106,11 @@ evsi <- function(INMB, dat, method = "NP", model = NULL, alpha = NULL, hyper_par
     cea_parms_tmp <- cea_parms
     for(i in 1:nrow(dat)){
       postr_MA <- upt_posterior(n = dat[i, c("n_NS_MA", "n_MV_MA", "n_mAbs_MA")], y = dat[i, c("y_NS_MA", "y_MV_MA", "y_mAbs_MA")],
-                                alpha = alpha, hyper_parms = hyper_parms[["MA"]], OR = OR, N_draw = N_draw, MCMC = MCMC, nchains = nchains)
+                                alpha = alpha, hyper_parms = hyper_parms[["MA"]], OR = OR, N_draw = N_draw, MCMC = MCMC, nchains = ncores)
       postr_HP <- upt_posterior(n = dat[i, c("n_NS_HP", "n_MV_HP", "n_mAbs_HP")], y = dat[i, c("y_NS_HP", "y_MV_HP", "y_mAbs_HP")],
-                                alpha = alpha, hyper_parms = hyper_parms[["HP"]], OR = OR, N_draw = N_draw, MCMC = MCMC, nchains = nchains)
+                                alpha = alpha, hyper_parms = hyper_parms[["HP"]], OR = OR, N_draw = N_draw, MCMC = MCMC, nchains = ncores)
       trans_parms_tmp[c("rho_V", "rho_M")] <-  list("rho_V" = 1 - postr_MA[,"r_MV"], "rho_M" = 1 - postr_MA[,"r_mAbs"])
-      inc_parms <- run_trans_models(N_draw = N_draw, y0 = y0_burn, trans_parms = trans_parms_tmp, years = years)
+      inc_parms <- run_trans_models(N_draw = N_draw, y0 = y0_burn, trans_parms = trans_parms_tmp, years = years, ncores = ncores)
       cea_parms_tmp[c("p_HP_I_MV", "p_HP_I_mAbs")] <- list("p_HP_I_MV" = cea_parms$p_HP_I_NS*postr_HP[,"r_MV"], "p_HP_I_mAbs" = cea_parms$p_HP_I_NS*postr_HP[,"r_mAbs"])
       cea_out <- eval_cea(N_draw = N_draw, inc_parms = inc_parms, cea_parms = cea_parms_tmp, ages = trans_parms$age_years)
       INMB_tmp <- eval_INMB(cea_out, WTP = WTP, ref = ref)

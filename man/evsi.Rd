@@ -13,7 +13,7 @@ evsi(
   hyper_parms = NULL,
   OR = TRUE,
   MCMC = TRUE,
-  nchains = 8,
+  ncores = 10,
   trans_parms = NULL,
   y0_burn = NULL,
   years = NULL,
@@ -40,7 +40,7 @@ evsi(
 
 \item{MCMC}{Logical. If set to TRUE, posterior will be estimated using Markov Chain Monte-Carlo. Otherwise, a Laplace approximation will be used (not currently available).  Only required for the moment matching method. Default is TRUE.}
 
-\item{nchains}{Number of chains to run in parallel. Only required for the moment matching method. Default is eight.}
+\item{ncores}{Number of cores to utilise. Will be used to determine the number of chains to run in parallel. Only required for the moment matching method. Default is ten.}
 
 \item{trans_parms}{Transmission model parameters. Only required for the moment matching method. Default is NULL.}
 
