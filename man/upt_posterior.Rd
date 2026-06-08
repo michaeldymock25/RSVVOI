@@ -4,34 +4,28 @@
 \alias{upt_posterior}
 \title{upt_posterior}
 \usage{
-upt_posterior(
-  n,
-  y,
-  hyper_parms,
-  alpha,
-  init_vals = c(0, 0),
-  N_draw = 10000,
-  N_grid = 10000
-)
+upt_posterior(n, y, alpha, hyper_parms, OR, N_draw, MCMC = TRUE, nchains = 8)
 }
 \arguments{
 \item{n}{Vector of participant sample sizes.}
 
 \item{y}{Vector of events.}
 
-\item{hyper_parms}{Hyperparameters. Must be a named list ("NS", "MV", "mAbs") with named elements ("a", "b") for "NS" and ("mu", "sigma") for "MV" and "mAbs".}
-
 \item{alpha}{Power prior contribution. Must be a scalar between zero and 1 (inclusive).}
 
-\item{init_vals}{Vector containing initial values for optimisation. Default is c(0, 0).}
+\item{hyper_parms}{Hyperparameters. Must be a named list ("NS", "MV", "mAbs") with named elements ("a", "b") for "NS" and ("mu", "sigma") for "MV" and "mAbs".}
 
-\item{N_draw}{Number of samples to draw. Default is 10,000.}
+\item{OR}{Logical. If set to TRUE, the odds ratio model will be used. Otherwise, the relative risk model will be used.}
 
-\item{N_grid}{Number of grid points to sample from to evaluate the integral. Default is 10,000.}
+\item{N_draw}{Number of samples to draw.}
+
+\item{MCMC}{Logical. If set to TRUE, posterior will be estimated using Markov Chain Monte-Carlo. Otherwise, a Laplace approximation will be used (not currently available). Default is TRUE.}
+
+\item{nchains}{Number of chains to run in parallel.}
 }
 \value{
-Named matrix of posterior draws for the relative risk parameters.
+Named matrix of posterior draws.
 }
 \description{
-Updates the posterior distribution using a Laplace approximation.
+Updates the posterior distribution using Markov Chain Monte-Carlo.
 }

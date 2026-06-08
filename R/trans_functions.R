@@ -60,29 +60,39 @@ burn_trans_model <- function(N_draw, trans_parms, burn_time = 6000, burn_batch_s
   return(y0_burn)
 }
 
-#' @title run_trans_model
+#' @title run_trans_models
 #' @import RSVModels
-#' @description Runs a transmission model and extracts the incidence outputs.
+#' @description Runs the transmission models for each strategy and extracts the incidence outputs and administration outputs (where applicable).
 #' @param N_draw Number of simulated runs.
-#' @param y0 Array of initial values. Must be of dimension c(N_draw, 75 (age groups), 4 SEIR)).
-#' @param mod Transmission model to run. Either "base", "vax" or "mab".
+#' @param y0 Array of initial values. Must be of dimension c(N_draw, 75 (age groups), 5 (SEIR + 1)).
 #' @param trans_parms Transmission model parameters.
 #' @param years Number of years to run the model.
-#' @param batch_size Size of each batch for parallel simulations. Default is 100.
 #' @param ncores Number of cores to run in parallel. Default is one.
-#' @return Incidence aggregated by year.
-#' @rdname run_trans_model
+#' @return Incidence and administration aggregated by year.
+#' @rdname run_trans_models
 #' @export
-run_trans_model <- function(N_draw, y0, mod, trans_parms, years, batch_size = 100, ncores = 1){
-  inc_dim <- ifelse(mod == "base", 5, 6)
-  if(mod %in% c("vax", "mab")){
-    y0_old <- y0
-    y0 <- array(data = 0, dim = c(N_draw, 75, 6))
-    y0[,,c(1:4, 6)] <- y0_old
-  }
-  mod_f <- match.fun(paste0("mod_", mod))
-  out <- mod_f(y0 = y0, max_time = years*12, parms = trans_parms, N_sim = N_draw, batch_size = batch_size, ncores = ncores)
-  inc_over_ages <- apply(out[,,,inc_dim], c(1,2), sum)
-  inc <- apply(inc_over_ages, 1, function(x) colSums(matrix(x, nrow = 12, ncol = years)))
-  return(inc)
+run_trans_models <- function(N_draw, y0, trans_parms, years, ncores = 1){
+  y0 <- y0[1:N_draw,,]
+  out <- lapply(c("base", "vax", "mab"), function(mod){
+    if(mod == "base"){
+      y0_tmp <- y0
+    } else {
+      y0_old <- y0
+      y0_tmp <- array(data = 0, dim = c(N_draw, 75, 6))
+      y0_tmp[,,c(1:4, 6)] <- y0_old
+    }
+    mod_f <- match.fun(paste0("mod_", mod))
+    mod_out <- mod_f(y0 = y0_tmp, max_time = years*12, parms = trans_parms, N_sim = N_draw, batch_size = N_draw/ncores, ncores = ncores)
+    inc <- aperm(apply(apply(mod_out[,,,"Incidence"], c(1,2,3), sum), c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))), c(2, 1, 3))
+    dimnames(inc) <- list("simulation" = dimnames(inc)[[1]], "year" = paste("year", 1:years), "age" = dimnames(inc)[[3]])
+    if(mod == "base"){
+      return(list(inc = inc))
+    } else {
+      admin <- aperm(apply(apply(mod_out[,,,5], c(1,2,3), sum), c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))), c(2, 1, 3))
+      dimnames(admin) <- list("simulation" = dimnames(admin)[[1]], "year" = paste("year", 1:years), "age" = dimnames(admin)[[3]])
+      return(list(inc = inc, admin = admin))
+    }
+  })
+  names(out) <- c("NS", "MV", "mAbs")
+  return(out)
 }

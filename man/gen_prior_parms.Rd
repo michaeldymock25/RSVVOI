@@ -4,7 +4,7 @@
 \alias{gen_prior_parms}
 \title{gen_prior_parms}
 \usage{
-gen_prior_parms(N_draw, hyper_parms, alpha, seed = NULL)
+gen_prior_parms(N_draw, hyper_parms, alpha, OR = TRUE, seed = NULL)
 }
 \arguments{
 \item{N_draw}{Number of parameter draws to characterise distributions.}
@@ -12,6 +12,8 @@ gen_prior_parms(N_draw, hyper_parms, alpha, seed = NULL)
 \item{hyper_parms}{Hyperparameters. Must be a named list ("NS", "MV", "mAbs") with named elements ("a", "b") for "NS" and ("mu", "sigma") for "MV" and "mAbs".}
 
 \item{alpha}{Power prior contribution. Must be a scalar between zero and 1 (inclusive).}
+
+\item{OR}{Logical. If set to TRUE, parameters will be transformed as if they were odds ratios. Otherwise, parameters will be transformed as if they were relative risks. Default is TRUE.}
 
 \item{seed}{Optional seed for replication. Default is NULL.}
 }

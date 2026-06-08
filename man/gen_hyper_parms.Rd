@@ -9,6 +9,7 @@ gen_hyper_parms(
   use_lit = TRUE,
   n = NULL,
   y = NULL,
+  OR = TRUE,
   seed = NULL,
   N_sim = 1e+07,
   path = ".",
@@ -23,6 +24,8 @@ gen_hyper_parms(
 \item{n}{Optional named vector of participant sample sizes. Names must be NS, MV and mAbs. Default is NULL.}
 
 \item{y}{Optional named vector of events. Names must be NS, MV and mAbs. Default is NULL.}
+
+\item{OR}{Logical. If set to TRUE, hyperparameters will be estimated for the odds ratio. Otherwise, hyperparameters will be estimated for the relatve risk. Default is TRUE.}
 
 \item{seed}{Optional seed for replication. Default is NULL.}
 

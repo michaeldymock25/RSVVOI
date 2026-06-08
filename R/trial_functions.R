@@ -5,6 +5,7 @@
 #' @param use_lit Logical. If set to TRUE, the data from the literature will be used to inform the hyperparameters. Otherwise, user supplied sample sizes (n) and events (y) are required. Default is TRUE.
 #' @param n Optional named vector of participant sample sizes. Names must be NS, MV and mAbs. Default is NULL.
 #' @param y Optional named vector of events. Names must be NS, MV and mAbs. Default is NULL.
+#' @param OR Logical. If set to TRUE, hyperparameters will be estimated for the odds ratio. Otherwise, hyperparameters will be estimated for the relatve risk. Default is TRUE.
 #' @param seed Optional seed for replication. Default is NULL.
 #' @param N_sim Number of samples to draw to estimate the relative risk distributions for the moment-matching step. Default is 10,000,000.
 #' @param path Path to the location of the Parameters folder. Only required if saving the output. Default is "." and may be used if the function is run inside the package.
@@ -12,7 +13,7 @@
 #' @return Named matrix containing hyperparameters.
 #' @rdname gen_hyper_parms
 #' @export
-gen_hyper_parms <- function(outcome = NULL, use_lit = TRUE, n = NULL, y = NULL, seed = NULL, N_sim = 10000000, path = ".", save_output = FALSE){
+gen_hyper_parms <- function(outcome = NULL, use_lit = TRUE, n = NULL, y = NULL, OR = TRUE, seed = NULL, N_sim = 10000000, path = ".", save_output = FALSE){
   if(!is.null(seed)) set.seed(seed)
   if(use_lit & (is.null(outcome) || !(outcome %in% c("MA", "HP")))) stop('Outcome must be "MA" or "HP" if use_lit == TRUE.')
   if(!use_lit & (!all(c("NS", "MV", "mAbs") %in% names(n)) | !all(c("NS", "MV", "mAbs") %in% names(y))))
@@ -28,10 +29,14 @@ gen_hyper_parms <- function(outcome = NULL, use_lit = TRUE, n = NULL, y = NULL, 
     }
   }
   p_sim <- sapply(c("NS", "MV", "mAbs"), function(d) rbeta(N_sim, 1 + y[d], 1 + n[d] - y[d]))
-  l_r_d_sim <- sapply(c("MV", "mAbs"), function(d) log(p_sim[,d]/p_sim[,"NS"]))
+  if(OR){
+    l_par_sim <- sapply(c("MV", "mAbs"), function(d) log((p_sim[,d]*(1 - p_sim[,"NS"]))/((1 - p_sim[,d])*p_sim[,"NS"])))
+  } else {
+    l_par_sim <- sapply(c("MV", "mAbs"), function(d) log(p_sim[,d]/p_sim[,"NS"]))
+  }
   hyper_parms <- list(NS   = c(a  =          unname(y["NS"]), b     = unname(n["NS"] - y["NS"])),
-                      MV   = c(mu =   mean(l_r_d_sim[,"MV"]), sigma =      sd(l_r_d_sim[,"MV"])),
-                      mAbs = c(mu = mean(l_r_d_sim[,"mAbs"]), sigma =    sd(l_r_d_sim[,"mAbs"])))
+                      MV   = c(mu =   mean(l_par_sim[,"MV"]), sigma =      sd(l_par_sim[,"MV"])),
+                      mAbs = c(mu = mean(l_par_sim[,"mAbs"]), sigma =    sd(l_par_sim[,"mAbs"])))
   if(save_output) saveRDS(hyper_parms, paste0(path, "/Parameters/hyper_parms.rds"))
   return(hyper_parms)
 }
@@ -41,23 +46,33 @@ gen_hyper_parms <- function(outcome = NULL, use_lit = TRUE, n = NULL, y = NULL, 
 #' @param N_draw Number of parameter draws to characterise distributions.
 #' @param hyper_parms Hyperparameters. Must be a named list ("NS", "MV", "mAbs") with named elements ("a", "b") for "NS" and ("mu", "sigma") for "MV" and "mAbs".
 #' @param alpha Power prior contribution. Must be a scalar between zero and 1 (inclusive).
+#' @param OR Logical. If set to TRUE, parameters will be transformed as if they were odds ratios. Otherwise, parameters will be transformed as if they were relative risks. Default is TRUE.
 #' @param seed Optional seed for replication. Default is NULL.
 #' @return Statistical model prior parameter distributions.
 #' @rdname gen_prior_parms
 #' @export
-gen_prior_parms <- function(N_draw, hyper_parms, alpha, seed = NULL){
+gen_prior_parms <- function(N_draw, hyper_parms, alpha, OR = TRUE, seed = NULL){
   if(!is.null(seed)) set.seed(seed)
   if(alpha < 0 | alpha > 1) stop("Power prior contribution alpha must be between zero and one.")
-  prior_NS   <- rbeta(N_draw, 1 + alpha*(hyper_parms$NS["a"] - 1), 1 + alpha*(hyper_parms$NS["b"] - 1))
+  p_NS <- rbeta(N_draw, 1 + alpha*(hyper_parms$NS["a"] - 1), 1 + alpha*(hyper_parms$NS["b"] - 1))
   if(alpha == 0){
     sds <- c(MV = 1, mAbs = 1)
   } else {
-    sds <- c(MV   = unname(sqrt(hyper_parms$MV["sigma"]^2/alpha)),
-             mAbs = unname(sqrt(hyper_parms$mAbs["sigma"]^2/alpha)))
+    sds <- c(MV   = unname(sqrt(hyper_parms$MV["sigma"]^2/sqrt(alpha))),
+             mAbs = unname(sqrt(hyper_parms$mAbs["sigma"]^2/sqrt(alpha))))
   }
-  prior_MV   <- rnorm(N_draw, hyper_parms$MV["mu"], sds["MV"])
-  prior_mAbs <- rnorm(N_draw, hyper_parms$mAbs["mu"], sds["mAbs"])
-  prior_parms <- cbind(NS = prior_NS, MV = prior_MV, mAbs = prior_mAbs)
+  pi_MV   <- rnorm(N_draw, hyper_parms$MV["mu"], sds["MV"])
+  pi_mAbs <- rnorm(N_draw, hyper_parms$mAbs["mu"], sds["mAbs"])
+  if(OR){
+    p_MV <- plogis(qlogis(p_NS) + pi_MV)
+    p_mAbs <- plogis(qlogis(p_NS) + pi_mAbs)
+  } else {
+    p_MV <- p_NS*exp(pi_MV)
+    p_mAbs <- p_NS*exp(pi_mAbs)
+  }
+  r_MV <- p_MV/p_NS
+  r_mAbs <- p_mAbs/p_NS
+  prior_parms <- cbind(p_NS = p_NS, p_MV = p_MV, p_mAbs = p_mAbs, pi_MV = pi_MV, pi_mAbs = pi_mAbs, r_MV = r_MV, r_mAbs = r_mAbs)
   return(prior_parms)
 }
 
@@ -88,7 +103,7 @@ gen_randomisation <- function(N, p_alloc, exact){
   } else {
     rand <- sample(1:length(p_alloc), size = N, replace = TRUE, prob = p_alloc)
   }
-  rand <- factor(rand, labels = c("NS", "MV", "mAbs"))
+  rand <- factor(factor(rand, labels = c("NS", "MV", "mAbs")[sort(unique(rand))]), levels = c("NS", "MV", "mAbs"))
   return(rand)
 }
 
@@ -112,132 +127,63 @@ gen_outcomes <- function(rand, p_d){
   rbinom(n = length(rand), size = 1, prob = p_d[rand])
 }
 
-#' @title log_marginal_post
-#' @description Computes the log marginal joint posterior distribution.
-#' @param log_r Proposal vector for the log relative risks (length two).
-#' @param n Vector of participant sample sizes.
-#' @param y Vector of events.
-#' @param hyper_parms Hyperparameters. Must be a named list ("NS", "MV", "mAbs") with named elements ("a", "b") for "NS" and ("mu", "sigma") for "MV" and "mAbs".
-#' @param alpha Power prior contribution. Must be a scalar between zero and 1 (inclusive).
-#' @param N_grid Number of grid points to sample from to evaluate the integral.
-#' @return The log marginal joint posterior evaluated at log_r.
-#' @rdname log_marginal_post
+#' @title gen_data
+#' @description Generates data from a series of trials.
+#' @param N_draw Number of parameter draws to characterise distributions.
+#' @param N Total trial sample size.
+#' @param p_alloc Allocation probabilities for each arm. Must be a vector of values between zero and one, and must sum to one.
+#' @param p_d Named list ("MA", "HP") of matrices containing draws of p_d with columns for p_NS, p_MV and p_mAbs.
+#' @param exact Logical. If set to TRUE, then the total sample size will be split across the arms according to the proportions defined by p_alloc (equivalent to a blocked design). If set to FALSE then allocations are generated dynamically (i.e., without blocking) and risks imbalance. Default is TRUE.
+#' @return Arrays containing simulated data for each trial.
+#' @rdname gen_data
 #' @export
-log_marginal_post <- function(log_r, n, y, hyper_parms, alpha, N_grid){
-  p_max <- min(c(1, exp(-log_r)))
-  p_grid <- seq(0, p_max, length.out = N_grid + 1)[-1]
-  r <- c(1, exp(log_r))
-  p <- outer(p_grid, r)
-  a <- 1 + alpha*(hyper_parms$NS["a"] - 1)
-  b <- 1 + alpha*(hyper_parms$NS["b"] - 1)
-  log_vals <- apply(p, 1, function(x){
-    if(any(x >= 1)) return(-Inf)
-    sum(dbinom(y, n, x, log = TRUE)) + dbeta(x[1], a, b, log = TRUE)
-  })
-  integral <- sum(exp(log_vals - max(log_vals)))*(p_grid[2] - p_grid[1])
-  max(log_vals) + log(integral) +
-    dnorm(log_r[1], hyper_parms$MV["mu"], sqrt(hyper_parms$MV["sigma"]^2/alpha), log = TRUE) +
-    dnorm(log_r[2], hyper_parms$mAbs["mu"], sqrt(hyper_parms$mAbs["sigma"]^2/alpha), log = TRUE)
+gen_data <- function(N_draw, N, p_alloc, p_d, exact = TRUE){
+  rand <- lapply(1:N_draw, function(i) gen_randomisation(N = N, p_alloc = p_alloc, exact = exact))
+  data_arr <- array(NA, dim = c(2, 3, N_draw, 2), dimnames = list(c("n", "y"), c("NS", "MV", "mAbs"), trial = 1:N_draw, c("MA", "HP")))
+  for(q in c("MA", "HP")){
+    data_tmp <- lapply(1:N_draw, function(i){
+      outcomes <- gen_outcomes(rand = rand[[i]], p_d = p_d[[q]][i,])
+      n <- tapply(outcomes, rand[[i]], length)
+      y <- tapply(outcomes, rand[[i]], sum)
+      n[is.na(n)] <- 0
+      y[is.na(y)] <- 0
+      rbind(n = n, y = y)
+    })
+    data_arr[,,,q] <- unlist(data_tmp)
+  }
+  return(data_arr)
 }
 
 #' @title upt_posterior
-#' @import MASS
-#' @description Updates the posterior distribution using a Laplace approximation.
+#' @import cmdstanr
+#' @description Updates the posterior distribution using Markov Chain Monte-Carlo.
 #' @param n Vector of participant sample sizes.
 #' @param y Vector of events.
-#' @param hyper_parms Hyperparameters. Must be a named list ("NS", "MV", "mAbs") with named elements ("a", "b") for "NS" and ("mu", "sigma") for "MV" and "mAbs".
 #' @param alpha Power prior contribution. Must be a scalar between zero and 1 (inclusive).
-#' @param init_vals Vector containing initial values for optimisation. Default is c(0, 0).
-#' @param N_draw Number of samples to draw. Default is 10,000.
-#' @param N_grid Number of grid points to sample from to evaluate the integral. Default is 10,000.
-#' @return Named matrix of posterior draws for the relative risk parameters.
+#' @param hyper_parms Hyperparameters. Must be a named list ("NS", "MV", "mAbs") with named elements ("a", "b") for "NS" and ("mu", "sigma") for "MV" and "mAbs".
+#' @param OR Logical. If set to TRUE, the odds ratio model will be used. Otherwise, the relative risk model will be used.
+#' @param N_draw Number of samples to draw.
+#' @param MCMC Logical. If set to TRUE, posterior will be estimated using Markov Chain Monte-Carlo. Otherwise, a Laplace approximation will be used (not currently available). Default is TRUE.
+#' @param nchains Number of chains to run in parallel.
+#' @return Named matrix of posterior draws.
 #' @rdname upt_posterior
 #' @export
-upt_posterior <- function(n, y, hyper_parms, alpha, init_vals = c(0, 0), N_draw = 10000, N_grid = 10000){
-  opt <- optim(par = init_vals,
-               fn = log_marginal_post,
-               n = n,
-               y = y,
-               hyper_parms = hyper_parms,
-               alpha = alpha,
-               N_grid = N_grid,
-               control = list(fnscale = -1),
-               hessian = TRUE)
-  log_r_hat <- opt$par
-  log_r_Sigma <- solve(-opt$hessian)
-  r_draws <- exp(mvrnorm(n = N_draw, mu = log_r_hat, Sigma = log_r_Sigma))
-  colnames(r_draws) <- c("MV", "mAbs")
-  return(r_draws)
-  # p_NS_prop <- rbeta(N_draw, hpars["a", "NS"] + y["NS"], hpars["b", "NS"] + n["NS"] - y["NS"])
-  # r_d_prop <- sapply(c("MV", "mAbs"), function(d) rbeta(N_draw, hpars["a", d], hpars["b", d]))
-  # p_d_prop <- apply(r_d_prop, 2, function(x) pmin(pmax(p_NS_prop*x, 1e-12), 1 - 1e-12))
-  # logw <- rowSums(sapply(c("MV", "mAbs"), function(d) lchoose(n[d], y[d]) + y[d]*log(p_d_prop[,d]) + (n[d] - y[d])*log1p(-p_d_prop[,d])))
-  # logw <- logw - max(logw)
-  # w <- exp(logw)
-  # w <- w/sum(w)
-  # u <- runif(1, 0, 1/N_draw) + (0:(N_draw - 1))/N_draw
-  # idx <- pmin(findInterval(u, cumsum(w)) + 1, length(w))
-  # p_NS_post <- p_NS_prop[idx]
-  # r_d_post <- r_d_prop[idx,]
-  # p_d_post <- apply(r_d_post, 2, function(x) p_NS_post*x)
-  # rho_post <- 1 - r_d_post
-  # return(list(p_NS = p_NS_post, r_d = r_d_post, p_d = p_d_post, rho = rho_post))
+upt_posterior <- function(n, y, alpha, hyper_parms, OR, N_draw, MCMC = TRUE, nchains = 8){
+  if(MCMC){
+    mod <- cmdstan_model("Models/RSV_statistical_model.stan")
+    stan_dat <- list(n = n,
+                     y = y,
+                     alpha = alpha,
+                     a_NS = hyper_parms$NS["a"],
+                     b_NS = hyper_parms$NS["b"],
+                     mu = c(hyper_parms$MV["mu"], hyper_parms$mAbs["mu"]),
+                     sigma = c(hyper_parms$MV["sigma"], hyper_parms$mAbs["sigma"]),
+                     OR = OR)
+    fit <- mod$sample(data = stan_dat, chains = nchains, parallel_chains = nchains, iter_sampling = ceiling(N_draw/nchains))
+    par_draws <- apply(fit$draws(c("p_NS", "p_d", "pi", "r")), 3, as.vector)
+    colnames(par_draws) <- c("p_NS", "p_MV", "p_mAbs", "pi_MV", "pi_mAbs", "r_MV", "r_mAbs")
+  } else {
+    stop("Only the MCMC implementation is currently available.")
+  }
+  return(par_draws)
 }
-
-#' @title sim_trial
-#' @description Simulates a trial by generating a randomisation list, generating the outcomes and updating the Beta-Binomial posterior distribution.
-#' @param N Total sample size.
-#' @param p_alloc Allocation probabilities for each arm. Must be a vector of values between zero and one, and must sum to one.
-#' @param p_k Vector of outcome probabilities for each arm. Values must be between zero and one.
-#' @param priors Prior distribution hyperparameters. Must be a matrix with rows for the hyperparameters "a" and "b", and columns for the arms.
-#' @param exact Logical. If set to TRUE, then the total sample size will be split across the arms according to the proportions defined by p_alloc (equivalent to a blocked design). If set to FALSE then allocations are generated dynamically (i.e., without blocking) and risks imbalance. Default is TRUE.
-#' @return Matrix of updated hyperparameters with the same dimension names as the input priors.
-#' @examples
-#' N <- 1000
-#' p_alloc <- c(0.5, 0.5)
-#' p_k <- c(0.2, 0.3)
-#' priors <- matrix(rep(1, 4), nrow = 2, ncol = 2, dimnames = list(c("a", "b"), c("NS", "MV")))
-#'
-#' sim_trial(N, p_alloc, p_k, priors)
-#' @rdname sim_trial
-#' @export
-sim_trial <- function(N, p_alloc, p_k, priors, exact = TRUE){
-  rand <- gen_randomisation(N = N, p_alloc = p_alloc, exact = exact)
-  out <- gen_outcomes(rand = rand, p_k = p_k)
-  pars <- upt_posterior(pars = priors, rand = rand, out = out)
-  return(pars)
-}
-
-#' @title draw_beta
-#' @description Draws samples from the Beta distribution given a set of hyperparameters.
-#' @param pars Matrix of hyperparameters with rows for the hyperparameters "a" and "b", and columns for the arms.
-#' @param N_draw Number of samples to draw.
-#' @return Matrix containing N_draw samples (rows) for each arm (columns).
-#' @examples
-#' pars <- matrix(c(1, 2, 1, 3), nrow = 2, ncol = 2, dimnames = list(c("a", "b"), c("NS", "MV")))
-#' N_draw <- 10000
-#'
-#' draws <- draw_beta(pars, N_draw)
-#' colMeans(draws)
-#' @rdname draw_beta
-#' @export
-draw_beta <- function(pars, N_draw) apply(pars, 2, function(arm_pars) rbeta(N_draw, arm_pars["a"], arm_pars["b"]))
-
-#' @title gen_eff_distributions
-#' @description Generates uncertainty distributions for the strategy effectiveness parameters.
-#' @param pars Matrix of hyperparameters with rows for the hyperparameters "a" and "b", and columns for the arms.
-#' @param N_draw Number of samples to draw. Default is 10,000.
-#' @return Matrix containing N_draw samples drawn (rows) for each arm (columns).
-#' @examples
-#' pars <- matrix(c(2, 1, 1, 2, 1, 5), nrow = 2, ncol = 3, dimnames = list(c("a", "b"), c("NS", "MV", "IM")))
-#'
-#' draws <- gen_eff_distributions(pars)
-#' colMeans(draws)
-#' @rdname gen_eff_distributions
-#' @export
-gen_eff_distributions <- function(pars, N_draw = 10000){
-  p_k <- draw_beta(pars = pars, N_draw = N_draw)
-  cbind(MV = 1 - p_k[,"MV"]/p_k[,"NS"],
-        IM = 1 - p_k[,"IM"]/p_k[,"NS"])
-}
-

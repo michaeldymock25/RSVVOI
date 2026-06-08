@@ -19,5 +19,5 @@ gen_cea_parms(N_draw, seed = NULL, path = ".", save_output = FALSE)
 List containing cost-effectiveness model parameter distributions.
 }
 \description{
-Generates the parameter distributions for the cost-effectiveness model parameters. Requires access to the Data folder containing data for the Australian life tables (life expectancy by age group) and the quality adjusted life year weights (QALYs by age group).
+Generates the parameter distributions for the health economic model parameters. Requires access to the Data folder containing data for the Australian life tables (life expectancy by age group) and the quality adjusted life year weights (QALYs by age group).
 }
