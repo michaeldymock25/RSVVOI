@@ -82,13 +82,13 @@ run_trans_models <- function(N_draw, y0, trans_parms, years, ncores = 1){
       y0_tmp <- array(data = 0, dim = c(N_draw, 75, 6))
       y0_tmp[,,c(1:4, 6)] <- y0_old
     }
-    mod_out <- mod_funs[[mod]](y0 = y0_tmp, max_time = years*12, parms = trans_parms, N_sim = N_draw, batch_size = ceiling(N_draw/ncores), ncores = ncores)
-    inc <- aperm(apply(apply(mod_out[,,,"Incidence"], c(1,2,3), sum), c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))), c(2, 1, 3))
+    mod_out <- mod_funs[[mod]](y0 = y0_tmp, max_time = years*12, parms = trans_parms, N_sim = N_draw, batch_size = ceiling(N_draw/ncores), ncores = ncores, minimal = TRUE)
+    inc <- aperm(apply(mod_out[,,,"Incidence"], c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))), c(2, 1, 3))
     dimnames(inc) <- list("simulation" = dimnames(inc)[[1]], "year" = paste("year", 1:years), "age" = dimnames(inc)[[3]])
     if(mod == "base"){
       return(list(inc = inc))
     } else {
-      admin <- aperm(apply(apply(mod_out[,,,5], c(1,2,3), sum), c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))), c(2, 1, 3))
+      admin <- aperm(apply(mod_out[,,,1], c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))), c(2, 1, 3))
       dimnames(admin) <- list("simulation" = dimnames(admin)[[1]], "year" = paste("year", 1:years), "age" = dimnames(admin)[[3]])
       return(list(inc = inc, admin = admin))
     }
