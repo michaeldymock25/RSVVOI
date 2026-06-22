@@ -43,11 +43,13 @@ evppi <- function(INMB, psa, model){
 #' @param MM Logical. If set to TRUE, then data will be simulated in preparation for the moment matching approximation method to be used in the EVSI estimation. Default is FALSE.
 #' @param Q Number of model reruns to estimate the expected variance of the posterior net benefit. Only required if MM == TRUE. Default is NULL.
 #' @param exact Logical. If set to TRUE, then the total sample size will be split across the arms according to the proportions defined by p_alloc (equivalent to a blocked design). If set to FALSE then allocations are generated dynamically (i.e., without blocking) and risks imbalance. Default is TRUE.
+#' @param seed Optional seed for replication. Default is NULL.
 #' @return Expected value of sample information
 #' @rdname prep_dat_evsi
 #' @export
 ##
-prep_dat_evsi <- function(p_d, N, p_alloc, MM = FALSE, Q = NULL, exact = TRUE){
+prep_dat_evsi <- function(p_d, N, p_alloc, MM = FALSE, Q = NULL, exact = TRUE, seed = NULL){
+  if(!is.null(seed)) set.seed(seed)
   if(MM){
     p_d_tmp <- do.call(cbind, p_d)
     colnames(p_d_tmp) <- paste0(colnames(p_d_tmp), rep(c("_MA", "_HP"), each = 3))
@@ -84,11 +86,13 @@ prep_dat_evsi <- function(p_d, N, p_alloc, MM = FALSE, Q = NULL, exact = TRUE){
 #' @param WTP Vector containing willingness-to-pay thresholds. Only required for the moment matching method. Default is NULL.
 #' @param ref Reference group to use for the increments when computing the incremental net monetary benefit. Only required for the moment matching method. Default is "NS".
 #' @param INMB_partial Samples of INMB for the parameters of interest generated from the evppi function using the non-parametric regression approximation method. Only required for the moment matching approximation method. Default is NULL.
+#' @param seed Optional seed for replication. Default is NULL.
 #' @return Expected value of sample information
 #' @rdname evsi
 #' @export
 evsi <- function(INMB, dat, method = "NP", model = NULL, alpha = NULL, hyper_parms = NULL, OR = TRUE, MCMC = TRUE, ncores = 10,
-                 trans_parms = NULL, y0_burn = NULL, years = NULL, cea_parms = NULL, WTP = NULL, ref = "NS", INMB_partial = NULL){
+                 trans_parms = NULL, y0_burn = NULL, years = NULL, cea_parms = NULL, WTP = NULL, ref = "NS", INMB_partial = NULL, seed = NULL){
+  if(!is.null(seed)) set.seed(seed)
   N_draw <- unique(sapply(INMB, nrow))
   D <- unique(sapply(INMB, ncol))
   if(method == "NP"){

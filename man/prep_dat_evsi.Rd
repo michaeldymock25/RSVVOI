@@ -4,7 +4,7 @@
 \alias{prep_dat_evsi}
 \title{prep_dat_evsi}
 \usage{
-prep_dat_evsi(p_d, N, p_alloc, MM = FALSE, Q = NULL, exact = TRUE)
+prep_dat_evsi(p_d, N, p_alloc, MM = FALSE, Q = NULL, exact = TRUE, seed = NULL)
 }
 \arguments{
 \item{p_d}{Named list ("MA", "HP") of matrices containing draws of p_d with columns for p_NS, p_MV and p_mAbs.}
@@ -18,6 +18,8 @@ prep_dat_evsi(p_d, N, p_alloc, MM = FALSE, Q = NULL, exact = TRUE)
 \item{Q}{Number of model reruns to estimate the expected variance of the posterior net benefit. Only required if MM == TRUE. Default is NULL.}
 
 \item{exact}{Logical. If set to TRUE, then the total sample size will be split across the arms according to the proportions defined by p_alloc (equivalent to a blocked design). If set to FALSE then allocations are generated dynamically (i.e., without blocking) and risks imbalance. Default is TRUE.}
+
+\item{seed}{Optional seed for replication. Default is NULL.}
 }
 \value{
 Expected value of sample information

@@ -20,7 +20,8 @@ evsi(
   cea_parms = NULL,
   WTP = NULL,
   ref = "NS",
-  INMB_partial = NULL
+  INMB_partial = NULL,
+  seed = NULL
 )
 }
 \arguments{
@@ -55,6 +56,8 @@ evsi(
 \item{ref}{Reference group to use for the increments when computing the incremental net monetary benefit. Only required for the moment matching method. Default is "NS".}
 
 \item{INMB_partial}{Samples of INMB for the parameters of interest generated from the evppi function using the non-parametric regression approximation method. Only required for the moment matching approximation method. Default is NULL.}
+
+\item{seed}{Optional seed for replication. Default is NULL.}
 }
 \value{
 Expected value of sample information
