@@ -4,7 +4,7 @@
 \alias{eval_icer}
 \title{eval_icer}
 \usage{
-eval_icer(costs, qalys, curr, new)
+eval_icer(costs, qalys, curr, new, years = NULL)
 }
 \arguments{
 \item{costs}{List containing arrays of costs (output from eval_cea() function).}
@@ -14,6 +14,8 @@ eval_icer(costs, qalys, curr, new)
 \item{curr}{Name of strategy to use as the comparator (e.g., the currently implemented strategy).}
 
 \item{new}{Name of the strategy to use as the new strategy (e.g., to compare against the currently implemented strategy).}
+
+\item{years}{Number of years to compute cumulative costs and QALYs. If NULL, then the maximum number of years will be used. Default is NULL.}
 }
 \value{
 List containing incremental costs, incremental QALYs and ICERs.

@@ -113,12 +113,14 @@ eval_cea <- function(N_draw, inc_parms, cea_parms, ages){
 #' @param qalys List containing arrays of QALYs (output from eval_cea() function).
 #' @param curr Name of strategy to use as the comparator (e.g., the currently implemented strategy).
 #' @param new Name of the strategy to use as the new strategy (e.g., to compare against the currently implemented strategy).
+#' @param years Number of years to compute cumulative costs and QALYs. If NULL, then the maximum number of years will be used. Default is NULL.
 #' @return List containing incremental costs, incremental QALYs and ICERs.
 #' @rdname eval_icer
 #' @export
-eval_icer <- function(costs, qalys, curr, new){
-  cost_increm <- apply(costs[[new]] - costs[[curr]], 1, sum)
-  qaly_increm <- apply(qalys[[new]] - qalys[[curr]], 1, sum)
+eval_icer <- function(costs, qalys, curr, new, years = NULL){
+  if(is.null(years)) years <- dim(costs[[1]])[2]
+  cost_increm <- apply(costs[[new]][,1:years,] - costs[[curr]][,1:years,], 1, sum)
+  qaly_increm <- apply(qalys[[new]][,1:years,] - qalys[[curr]][,1:years,], 1, sum)
   icer <- cost_increm/qaly_increm
   return(list(cost_increm = cost_increm, qaly_increm = qaly_increm, icer = icer))
 }
@@ -159,12 +161,14 @@ plot_cea <- function(cea_increm, WTP = NULL, sub = NULL){
 #' @param cea List containing costs and QALYs for each strategy (output from eval_cea() function).
 #' @param WTP Vector containing willingness-to-pay thresholds.
 #' @param ref Reference group to use for the increments. Default is "NS".
+#' @param years Number of years to compute cumulative costs and QALYs. If NULL, then the maximum number of years will be used. Default is NULL.
 #' @return Named list containing incremental net monetary benefit for each willingness-to-pay threshold.
 #' @rdname eval_INMB
 #' @export
-eval_INMB <- function(cea, WTP, ref = "NS"){
-  costs <- sapply(cea$costs, function(x) apply(x, 1, sum))
-  qalys <- sapply(cea$qalys, function(x) apply(x, 1, sum))
+eval_INMB <- function(cea, WTP, ref = "NS", years = NULL){
+  if(is.null(years)) years <- dim(cea$costs[[1]])[2]
+  costs <- sapply(cea$costs, function(x) apply(x[,1:years,], 1, sum))
+  qalys <- sapply(cea$qalys, function(x) apply(x[,1:years,], 1, sum))
   INMB <- lapply(WTP, function(wtp){
     NB <- wtp*qalys - costs
     NB - NB[,ref]
