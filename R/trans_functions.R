@@ -42,22 +42,32 @@ gen_trans_parms <- function(N_draw, seed = NULL, path = ".", save_output = FALSE
 #' @param burn_batch_size Size of each burn_time batch to run in parallel. Default is 100. Reduce to manage memory workload.
 #' @param ncores Number of cores to run in parallel. Default is one.
 #' @param path Path to the location of the Data and Parameters folders. Default is "." and may be used if the function is run inside the package.
-#' @param save_output Logical. If set to TRUE, then the generated distributions will be saved into the Parameters folder. Default is FALSE.
 #' @return Array of estimated model states after burn-in to use as initial values.
 #' @rdname burn_trans_model
 #' @export
-burn_trans_model <- function(N_draw, trans_parms, burn_time = 6000, burn_batch_size = 100, ncores = 1, path = ".", save_output = FALSE){
+burn_trans_model <- function(N_draw, trans_parms, burn_time = 6000, burn_batch_size = 100, ncores = 1, path = "."){
   N_burn_batch <- ceiling(burn_time/burn_batch_size)
   burn_batch_lens <- sapply(1:N_burn_batch, function(i) ifelse(i < N_burn_batch, burn_batch_size, burn_time - (N_burn_batch - 1)*burn_batch_size))
-  y0_burn <- RSVModels::initial_values(mod = "base", size_months = trans_parms$size_months, N_sim = N_draw)
-  for(i in 1:N_burn_batch){
-    cat("Starting batch", i, "of", N_burn_batch, "\n")
+  y0_burn_fnames <- list.files("Parameters", paste0("y0_burn_", N_draw/1000, "K_"), full.names = TRUE)
+  if(length(y0_burn_fnames) == 0){
+    st <- 1
+  } else {
+    st <- max(as.numeric(sapply(y0_burn_fnames, function(txt) strsplit(txt, "_")[[1]][4]))) + 1
+  }
+  for(i in st:N_burn_batch){
+    cat("Starting batch", i, "of", N_burn_batch, "at", as.character(Sys.time()), "\n")
+    if(i == 1){
+      y0_burn <- RSVModels::initial_values(mod = "base", size_months = trans_parms$size_months, N_sim = N_draw)
+    } else {
+      y0_burn <- readRDS(paste0(path, "/Parameters/y0_burn_", N_draw/1000, "K_", i - 1, "_of_", N_burn_batch, ".rds"))
+    }
     y0_burn <- RSVModels::mod_base(y0 = y0_burn, max_time = burn_batch_lens[i], parms = trans_parms, N_sim = N_draw, batch_size = N_draw/ncores, ncores = ncores)
     y0_burn <- y0_burn[,burn_batch_lens[i],,]
+    y0_burn[,,5] <- 0
+    saveRDS(y0_burn, paste0(path, "/Parameters/y0_burn_", N_draw/1000, "K_", i, "_of_", N_burn_batch, ".rds"))
     gc()
   }
-  y0_burn[,,5] <- 0
-  if(save_output) saveRDS(y0_burn, paste0(path, "/Parameters/y0_burn_", N_draw/1000, "K.rds"))
+  saveRDS(y0_burn, paste0(path, "/Parameters/y0_burn_", N_draw/1000, "K.rds"))
   return(y0_burn)
 }
 

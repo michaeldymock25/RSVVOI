@@ -10,8 +10,7 @@ burn_trans_model(
   burn_time = 6000,
   burn_batch_size = 100,
   ncores = 1,
-  path = ".",
-  save_output = FALSE
+  path = "."
 )
 }
 \arguments{
@@ -26,8 +25,6 @@ burn_trans_model(
 \item{ncores}{Number of cores to run in parallel. Default is one.}
 
 \item{path}{Path to the location of the Data and Parameters folders. Default is "." and may be used if the function is run inside the package.}
-
-\item{save_output}{Logical. If set to TRUE, then the generated distributions will be saved into the Parameters folder. Default is FALSE.}
 }
 \value{
 Array of estimated model states after burn-in to use as initial values.
