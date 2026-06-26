@@ -51,12 +51,13 @@ burn_trans_model <- function(N_draw, trans_parms, burn_time = 6000, burn_batch_s
   burn_batch_lens <- sapply(1:N_burn_batch, function(i) ifelse(i < N_burn_batch, burn_batch_size, burn_time - (N_burn_batch - 1)*burn_batch_size))
   y0_burn <- RSVModels::initial_values(mod = "base", size_months = trans_parms$size_months, N_sim = N_draw)
   for(i in 1:N_burn_batch){
+    cat("Starting batch", i, "of", N_burn_batch, "\n")
     y0_burn <- RSVModels::mod_base(y0 = y0_burn, max_time = burn_batch_lens[i], parms = trans_parms, N_sim = N_draw, batch_size = N_draw/ncores, ncores = ncores)
     y0_burn <- y0_burn[,burn_batch_lens[i],,]
     gc()
   }
   y0_burn[,,5] <- 0
-  if(save_output) saveRDS(y0_burn, paste0(path, "/Parameters/y0_burn.rds"))
+  if(save_output) saveRDS(y0_burn, paste0(path, "/Parameters/y0_burn_", N_draw/1000, "K.rds"))
   return(y0_burn)
 }
 
