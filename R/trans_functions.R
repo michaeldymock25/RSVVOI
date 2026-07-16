@@ -78,11 +78,13 @@ burn_trans_model <- function(N_draw, trans_parms, burn_time = 6000, burn_batch_s
 #' @param y0 Array of initial values. Must be of dimension c(N_draw, 75 (age groups), 5 (SEIR + 1)).
 #' @param trans_parms Transmission model parameters.
 #' @param years Number of years to run the model.
+#' @param batch_size Size of each batch to run in parallel. Default is NULL, which is then set to ceiling(N_draw/ncores). Reduce to manage memory workload.
 #' @param ncores Number of cores to run in parallel. Default is one.
 #' @return Incidence and administration aggregated by year.
 #' @rdname run_trans_models
 #' @export
-run_trans_models <- function(N_draw, y0, trans_parms, years, ncores = 1){
+run_trans_models <- function(N_draw, y0, trans_parms, years, batch_size = NULL, ncores = 1){
+  if(is.null(batch_size)) batch_size <- ceiling(N_draw/ncores)
   y0 <- y0[1:N_draw,,]
   mod_funs <- list(base = RSVModels::mod_base, vax = RSVModels::mod_vax, mab = RSVModels::mod_mab)
   out <- lapply(c("base", "vax", "mab"), function(mod){
@@ -93,7 +95,7 @@ run_trans_models <- function(N_draw, y0, trans_parms, years, ncores = 1){
       y0_tmp <- array(data = 0, dim = c(N_draw, 75, 6))
       y0_tmp[,,c(1:4, 6)] <- y0_old
     }
-    mod_out <- mod_funs[[mod]](y0 = y0_tmp, max_time = years*12, parms = trans_parms, N_sim = N_draw, batch_size = ceiling(N_draw/ncores), ncores = ncores, minimal = TRUE)
+    mod_out <- mod_funs[[mod]](y0 = y0_tmp, max_time = years*12, parms = trans_parms, N_sim = N_draw, batch_size = batch_size, ncores = ncores, minimal = TRUE)
     inc <- aperm(apply(mod_out[,,,"Incidence"], c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))), c(2, 1, 3))
     dimnames(inc) <- list("simulation" = dimnames(inc)[[1]], "year" = paste("year", 1:years), "age" = dimnames(inc)[[3]])
     if(mod == "base"){
