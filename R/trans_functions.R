@@ -33,6 +33,37 @@ gen_trans_parms <- function(N_draw, seed = NULL, path = ".", save_output = FALSE
   return(trans_parms)
 }
 
+#' @title sub_trans_parms
+#' @description Subsets the parameter distributions for the transmission model parameters. Includes strategy effectiveness parameters.
+#' @param trans_parms Full set of transmission parameter distributions.
+#' @param start First draw to subset.
+#' @param end Final draw to subset.
+#' @return Subsetted list containing transmission model parameter distributions.
+#' @rdname sub_trans_parms
+#' @export
+sub_trans_parms <- function(trans_parms, start, end){
+  trans_parms_sub <- list(total_pop   = trans_parms$total_pop,
+                          age_years   = trans_parms$age_years,
+                          age_months  = trans_parms$age_months,
+                          size_months = trans_parms$size_months,
+                          mixing      = trans_parms$mixing,
+                          b0          = trans_parms$b0,
+                          b1          = trans_parms$b1,
+                          phi         = trans_parms$phi,
+                          omega       = trans_parms$omega,
+                          delta       = trans_parms$delta[start:end],
+                          gamma       = trans_parms$gamma[start:end],
+                          nu          = trans_parms$nu[start:end],
+                          r_sigma     = trans_parms$r_sigma[start:end],
+                          dur_V       = trans_parms$dur_V[start:end],
+                          kappa_V     = trans_parms$kappa_V[start:end],
+                          dur_M       = trans_parms$dur_M[start:end],
+                          kappa_M     = trans_parms$kappa_M[start:end],
+                          rho_V       = trans_parms$rho_V[start:end],
+                          rho_M       = trans_parms$rho_M[start:end])
+  return(trans_parms_sub)
+}
+
 #' @title burn_trans_model
 #' @import RSVModels
 #' @description Runs the base transmission model for a set burn-in period.
