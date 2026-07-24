@@ -107,7 +107,7 @@ eval_cea <- function(N_draw, inc_parms, cea_parms, ages, minimal = FALSE){
       p_HP_SI <- cea_parms[[paste0("p_HP_SI_", d)]][1:N_draw,j]
       p_GP_SI <- cea_parms$p_GP_SI[1:N_draw,j]
       p_MA_SI <- p_HP_SI + p_GP_SI
-      if(any(p_MA_I > 1)){
+      if(any(p_MA_SI > 1)){
         p_HP_SI[p_MA_SI > 1] <- p_HP_SI[p_MA_SI > 1]/p_MA_SI[p_MA_SI > 1]
         p_GP_SI[p_MA_SI > 1] <- p_GP_SI[p_MA_SI > 1]/p_MA_SI[p_MA_SI > 1]
       }
