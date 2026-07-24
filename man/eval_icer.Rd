@@ -4,7 +4,7 @@
 \alias{eval_icer}
 \title{eval_icer}
 \usage{
-eval_icer(costs, qalys, curr, new, years = NULL)
+eval_icer(costs, qalys, curr, new, years = NULL, max_age_ind = NULL)
 }
 \arguments{
 \item{costs}{List containing arrays of costs (output from eval_cea() function).}
@@ -16,6 +16,8 @@ eval_icer(costs, qalys, curr, new, years = NULL)
 \item{new}{Name of the strategy to use as the new strategy (e.g., to compare against the currently implemented strategy).}
 
 \item{years}{Number of years to compute cumulative costs and QALYs. If NULL, then the maximum number of years will be used. Default is NULL.}
+
+\item{max_age_ind}{Maximum age to compute cumulative costs and QALYs. If NULL, then the maximum number of ages will be used. Default is NULL.}
 }
 \value{
 List containing incremental costs, incremental QALYs and ICERs.

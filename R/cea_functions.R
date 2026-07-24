@@ -9,7 +9,14 @@
 cea_parms_age_helper <- function(N_draw, par_nm){
   ages <- c(seq(0, 5, 1/12), seq(10, 75, 5))
   par_mat <- matrix(NA, nrow = N_draw, ncol = length(ages), dimnames = list(NULL, "age" = ages))
-  if(par_nm == "p_HP_I_NS"){
+  if(par_nm == "p_SI_I"){
+    pars <- list(rbeta(N_draw, 20, 10) ,
+                 rbeta(N_draw, 30, 30) ,
+                 rbeta(N_draw, 50, 150),
+                 rbeta(N_draw, 30, 25) ,
+                 rbeta(N_draw, 7 , 1))
+    inds <- rep(1:5, times = c(60, 2, 5, 5, 3))
+  } else if(par_nm == "p_HP_SI_NS"){
     pars <- list(rbeta(N_draw, 15, 75) ,
                  rbeta(N_draw, 12, 120),
                  rbeta(N_draw, 10, 200),
@@ -17,20 +24,10 @@ cea_parms_age_helper <- function(N_draw, par_nm){
                  rbeta(N_draw, 10, 700),
                  rbeta(N_draw, 8 , 750),
                  rbeta(N_draw, 3 , 800),
-                 rbeta(N_draw, 3 , 4))
+                 rbeta(N_draw, 6 , 8))
     inds <- rep(1:8, times = c(2, 1, 4, 6, 6, 6, 49, 1))
-  } else if(par_nm == "p_ED_I"){
-    pars <- list(rbeta(N_draw, 15, 75) ,
-                 rbeta(N_draw, 12, 120),
-                 rbeta(N_draw, 10, 200),
-                 rbeta(N_draw, 6 , 200),
-                 rbeta(N_draw, 10, 700),
-                 rbeta(N_draw, 8 , 750),
-                 rbeta(N_draw, 3 , 800),
-                 rbeta(N_draw, 1 , 500))
-    inds <- rep(1:8, times = c(2, 1, 4, 6, 6, 6, 35, 15))
-  } else if(par_nm == "p_GP_I"){
-    pars <- list(rbeta(N_draw, 10, 3)  ,
+  } else if(par_nm == "p_GP_SI"){
+    pars <- list(rbeta(N_draw, 20, 6)  ,
                  rbeta(N_draw, 40, 60) ,
                  rbeta(N_draw, 40, 70) ,
                  rbeta(N_draw, 40, 100),
@@ -64,9 +61,9 @@ gen_cea_parms <- function(N_draw, seed = NULL, Data_path = ".", save_output = FA
   age_qalys <- read.csv(paste0(Data_path, "/Data/age_qalys.csv"))
   lifetable <- merge(lifetable, age_qalys, by = "age")
   cea_parms <- list(lifetable = lifetable,
-                    p_HP_I_NS = cea_parms_age_helper(N_draw, par_nm = "p_HP_I_NS"),
-                    p_ED_I = cea_parms_age_helper(N_draw, par_nm = "p_ED_I"),
-                    p_GP_I = cea_parms_age_helper(N_draw, par_nm = "p_GP_I"),
+                    p_SI_I = cea_parms_age_helper(N_draw, par_nm = "p_SI_I"),
+                    p_HP_SI_NS = cea_parms_age_helper(N_draw, par_nm = "p_HP_SI_NS"),
+                    p_GP_SI = cea_parms_age_helper(N_draw, par_nm = "p_GP_SI"),
                     p_ICU_HP = rbeta(N_draw, 15, 400),
                     p_D_ICU = cea_parms_age_helper(N_draw, par_nm = "p_D_ICU"),
                     MV_dose_cost = runif(N_draw, 75, 370),
@@ -76,14 +73,13 @@ gen_cea_parms <- function(N_draw, seed = NULL, Data_path = ".", save_output = FA
                     GP_cost = rgamma(N_draw, 16, 0.4),
                     N_GP = sample(1:3, N_draw, replace = TRUE),
                     Virology_cost = rgamma(N_draw, 15, 0.5),
-                    NA_ED_cost = rgamma(N_draw, 15, 0.02),
                     ED_cost = rgamma(N_draw, 15, 0.01),
                     HP_cost = rgamma(N_draw, 15, 0.002),
                     ICU_cost = rgamma(N_draw, 15, 0.0006),
-                    NA_dis = rbeta(N_draw, 15, 80),
+                    GP_dis = rbeta(N_draw, 15, 80),
                     HP_dis = rbeta(N_draw, 9, 13),
                     ICU_dis = rbeta(N_draw, 6, 4),
-                    NA_dur = rgamma(N_draw, 15, 3)/365.25,
+                    GP_dur = rgamma(N_draw, 15, 3)/365.25,
                     HP_dur = rgamma(N_draw, 27, 6)/365.25,
                     ICU_dur = rgamma(N_draw, 40, 4)/365.25,
                     discount = 0.05)
@@ -97,21 +93,33 @@ gen_cea_parms <- function(N_draw, seed = NULL, Data_path = ".", save_output = FA
 #' @param inc_parms RSV incidence parameter distributions.
 #' @param cea_parms Health economic parameter distributions.
 #' @param ages Vector of ages in years used for transmission modelling.
+#' @param minimal Logical indicator. If set to TRUE, then only minimal output is stored (i.e., no states). Default is FALSE.
 #' @return List containing arrays for states (number of individuals in each health economic state), costs and QALYs.
 #' @rdname eval_cea
 #' @export
-eval_cea <- function(N_draw, inc_parms, cea_parms, ages){
+eval_cea <- function(N_draw, inc_parms, cea_parms, ages, minimal = FALSE){
   states <- lapply(c("NS", "MV", "mAbs"), function(d){
     inc <- inc_parms[[d]]$inc[1:N_draw,,]
-    HP <- inc*cea_parms[[paste0("p_HP_I_", d)]][1:N_draw]
-    ED <- inc*cea_parms$p_ED_I[1:N_draw]
-    GP <- inc*cea_parms$p_GP_I[1:N_draw]
-    No_MA <- inc - HP - ED - GP
+    D <- GP <- HP <- SI <- array(NA, dim = dim(inc), dimnames = dimnames(inc))
+    for(j in 1:length(ages)) SI[,,j] <- inc[,,j]*cea_parms$p_SI_I[1:N_draw,j]
+    No_SI <- inc - SI
+    for(j in 1:length(ages)){
+      p_HP_SI <- cea_parms[[paste0("p_HP_SI_", d)]][1:N_draw,j]
+      p_GP_SI <- cea_parms$p_GP_SI[1:N_draw,j]
+      p_MA_SI <- p_HP_SI + p_GP_SI
+      if(any(p_MA_I > 1)){
+        p_HP_SI[p_MA_SI > 1] <- p_HP_SI[p_MA_SI > 1]/p_MA_SI[p_MA_SI > 1]
+        p_GP_SI[p_MA_SI > 1] <- p_GP_SI[p_MA_SI > 1]/p_MA_SI[p_MA_SI > 1]
+      }
+      HP[,,j] <- SI[,,j]*p_HP_SI
+      GP[,,j] <- SI[,,j]*p_GP_SI
+    }
+    No_MA <- SI - HP - GP
     ICU <- HP*cea_parms$p_ICU_HP[1:N_draw]
     No_ICU <- HP - ICU
-    D <- ICU*cea_parms$p_D_ICU[1:N_draw]
+    for(j in 1:length(ages)) D[,,j] <- ICU[,,j]*cea_parms$p_D_ICU[1:N_draw,j]
     No_D <- ICU - D
-    return(list(No_MA = No_MA, GP = GP, ED = ED, No_ICU = No_ICU, No_D = No_D, D = D))
+    return(list(No_SI = No_SI, SI = SI, No_MA = No_MA, GP = GP, No_ICU = No_ICU, No_D = No_D, D = D))
   })
   names(states) <- c("NS", "MV", "mAbs")
 
@@ -122,11 +130,10 @@ eval_cea <- function(N_draw, inc_parms, cea_parms, ages){
     } else {
       strategy_cost <- inc_parms[[d]]$admin[1:N_draw,,]*(cea_parms[[paste0(d, "_dose_cost")]][1:N_draw]*(1 + cea_parms$p_waste[1:N_draw]) + cea_parms$admin_cost[1:N_draw])
     }
-    GP_cost <- (states_tmp$GP + states_tmp$ED + states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*(cea_parms$N_GP[1:N_draw]*cea_parms$GP_cost[1:N_draw] + cea_parms$Virology_cost[1:N_draw])
-    ED_cost <- states_tmp$ED*cea_parms$NA_ED_cost[1:N_draw]
+    GP_cost <- (states_tmp$GP + states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*(cea_parms$N_GP[1:N_draw]*cea_parms$GP_cost[1:N_draw] + cea_parms$Virology_cost[1:N_draw])
     No_ICU_cost <- (states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*(cea_parms$ED_cost[1:N_draw] + cea_parms$HP_cost[1:N_draw])
     No_D_cost <- (states_tmp$No_D + states_tmp$D)*cea_parms$ICU_cost[1:N_draw]
-    total_cost <- strategy_cost + GP_cost + ED_cost + No_ICU_cost + No_D_cost
+    total_cost <- strategy_cost + GP_cost + No_ICU_cost + No_D_cost
     total_cost_disc <- aperm(apply(total_cost, c(1,3), function(x) x/(1 + cea_parms$discount)^(1:dim(total_cost)[2] - 1)), c(2, 1, 3))
     return(total_cost_disc)
   })
@@ -134,10 +141,10 @@ eval_cea <- function(N_draw, inc_parms, cea_parms, ages){
 
   qalys <- lapply(c("NS", "MV", "mAbs"), function(d){
     states_tmp <- states[[d]]
-    outpatient_qaly <- -((states_tmp$GP + states_tmp$ED + states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*cea_parms$NA_dis[1:N_draw]*cea_parms$NA_dur[1:N_draw])
+    GP_qaly <- -((states_tmp$GP + states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*cea_parms$GP_dis[1:N_draw]*cea_parms$GP_dur[1:N_draw])
     No_ICU_qaly <- -((states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*cea_parms$HP_dis[1:N_draw]*cea_parms$HP_dur[1:N_draw])
     No_D_qaly <- -((states_tmp$No_D + states_tmp$D)*cea_parms$ICU_dis[1:N_draw]*cea_parms$ICU_dur[1:N_draw])
-    alive_qaly <- outpatient_qaly + No_ICU_qaly + No_D_qaly
+    alive_qaly <- GP_qaly + No_ICU_qaly + No_D_qaly
     alive_qaly_disc <- aperm(apply(alive_qaly, c(1,3), function(x) x/(1 + cea_parms$discount)^(1:dim(alive_qaly)[2] - 1)), c(2, 1, 3))
     D_age_disc <- sapply(1:length(ages), function(i){
       fut_Ql <- cea_parms$lifetable[cea_parms$lifetable$age >= ages[i], "qaly"]
@@ -152,7 +159,11 @@ eval_cea <- function(N_draw, inc_parms, cea_parms, ages){
   })
   names(qalys) <- c("NS", "MV", "mAbs")
 
-  return(list(states = states, costs = costs, qalys = qalys))
+  if(minimal){
+    return(list(costs = costs, qalys = qalys))
+  } else {
+    return(list(states = states, costs = costs, qalys = qalys))
+  }
 }
 
 #' @title eval_icer
@@ -162,13 +173,15 @@ eval_cea <- function(N_draw, inc_parms, cea_parms, ages){
 #' @param curr Name of strategy to use as the comparator (e.g., the currently implemented strategy).
 #' @param new Name of the strategy to use as the new strategy (e.g., to compare against the currently implemented strategy).
 #' @param years Number of years to compute cumulative costs and QALYs. If NULL, then the maximum number of years will be used. Default is NULL.
+#' @param max_age_ind Maximum age to compute cumulative costs and QALYs. If NULL, then the maximum number of ages will be used. Default is NULL.
 #' @return List containing incremental costs, incremental QALYs and ICERs.
 #' @rdname eval_icer
 #' @export
-eval_icer <- function(costs, qalys, curr, new, years = NULL){
+eval_icer <- function(costs, qalys, curr, new, years = NULL, max_age_ind = NULL){
   if(is.null(years)) years <- dim(costs[[1]])[2]
-  cost_increm <- apply(costs[[new]][,1:years,] - costs[[curr]][,1:years,], 1, sum)
-  qaly_increm <- apply(qalys[[new]][,1:years,] - qalys[[curr]][,1:years,], 1, sum)
+  if(is.null(max_age_ind)) max_age_ind <- dim(costs[[1]])[3]
+  cost_increm <- apply(costs[[new]][,1:years,1:max_age_ind] - costs[[curr]][,1:years,1:max_age_ind], 1, sum)
+  qaly_increm <- apply(qalys[[new]][,1:years,1:max_age_ind] - qalys[[curr]][,1:years,1:max_age_ind], 1, sum)
   icer <- cost_increm/qaly_increm
   return(list(cost_increm = cost_increm, qaly_increm = qaly_increm, icer = icer))
 }
@@ -210,13 +223,15 @@ plot_cea <- function(cea_increm, WTP = NULL, sub = NULL){
 #' @param WTP Vector containing willingness-to-pay thresholds.
 #' @param ref Reference group to use for the increments. Default is "NS".
 #' @param years Number of years to compute cumulative costs and QALYs. If NULL, then the maximum number of years will be used. Default is NULL.
+#' @param max_age_ind Maximum age to compute cumulative costs and QALYs. If NULL, then the maximum number of ages will be used. Default is NULL.
 #' @return Named list containing incremental net monetary benefit for each willingness-to-pay threshold.
 #' @rdname eval_INMB
 #' @export
-eval_INMB <- function(cea, WTP, ref = "NS", years = NULL){
+eval_INMB <- function(cea, WTP, ref = "NS", years = NULL, max_age_ind = NULL){
   if(is.null(years)) years <- dim(cea$costs[[1]])[2]
-  costs <- sapply(cea$costs, function(x) apply(x[,1:years,], 1, sum))
-  qalys <- sapply(cea$qalys, function(x) apply(x[,1:years,], 1, sum))
+  if(is.null(max_age_ind)) max_age_ind <- dim(cea$costs[[1]])[3]
+  costs <- sapply(cea$costs, function(x) apply(x[,1:years,1:max_age_ind], 1, sum))
+  qalys <- sapply(cea$qalys, function(x) apply(x[,1:years,1:max_age_ind], 1, sum))
   INMB <- lapply(WTP, function(wtp){
     NB <- wtp*qalys - costs
     NB - NB[,ref]

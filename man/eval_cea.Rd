@@ -4,7 +4,7 @@
 \alias{eval_cea}
 \title{eval_cea}
 \usage{
-eval_cea(N_draw, inc_parms, cea_parms, ages)
+eval_cea(N_draw, inc_parms, cea_parms, ages, minimal = FALSE)
 }
 \arguments{
 \item{N_draw}{Number of parameter draws to use. Should match the number of simulations used to estimate the incidence parameters.}
@@ -14,6 +14,8 @@ eval_cea(N_draw, inc_parms, cea_parms, ages)
 \item{cea_parms}{Health economic parameter distributions.}
 
 \item{ages}{Vector of ages in years used for transmission modelling.}
+
+\item{minimal}{Logical indicator. If set to TRUE, then only minimal output is stored (i.e., no states). Default is FALSE.}
 }
 \value{
 List containing arrays for states (number of individuals in each health economic state), costs and QALYs.

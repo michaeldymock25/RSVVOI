@@ -4,7 +4,7 @@
 \alias{eval_INMB}
 \title{eval_INMB}
 \usage{
-eval_INMB(cea, WTP, ref = "NS", years = NULL)
+eval_INMB(cea, WTP, ref = "NS", years = NULL, max_age_ind = NULL)
 }
 \arguments{
 \item{cea}{List containing costs and QALYs for each strategy (output from eval_cea() function).}
@@ -14,6 +14,8 @@ eval_INMB(cea, WTP, ref = "NS", years = NULL)
 \item{ref}{Reference group to use for the increments. Default is "NS".}
 
 \item{years}{Number of years to compute cumulative costs and QALYs. If NULL, then the maximum number of years will be used. Default is NULL.}
+
+\item{max_age_ind}{Maximum age to compute cumulative costs and QALYs. If NULL, then the maximum number of ages will be used. Default is NULL.}
 }
 \value{
 Named list containing incremental net monetary benefit for each willingness-to-pay threshold.
