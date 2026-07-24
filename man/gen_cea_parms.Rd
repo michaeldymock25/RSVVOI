@@ -4,16 +4,24 @@
 \alias{gen_cea_parms}
 \title{gen_cea_parms}
 \usage{
-gen_cea_parms(N_draw, seed = NULL, path = ".", save_output = FALSE)
+gen_cea_parms(
+  N_draw,
+  seed = NULL,
+  Data_path = ".",
+  save_output = FALSE,
+  save_path = "Parameters/cea_parms.rds"
+)
 }
 \arguments{
 \item{N_draw}{Number of parameter draws to characterise distributions.}
 
 \item{seed}{Optional seed for replication. Default is NULL.}
 
-\item{path}{Path to the location of the Data and Parameters folders. Default is "." and may be used if the function is run inside the package.}
+\item{Data_path}{Path to the location of the Data folder. Default is "." and may be used if the function is run inside the package.}
 
 \item{save_output}{Logical. If set to TRUE, then the generated distributions will be saved into the Parameters folder. Default is FALSE.}
+
+\item{save_path}{Path to the location of the Parameters folder (or other location where output is to be saved). Default is "Parameters/cea_parms.rds" and may be used if the function is run inside the package. Only required if saving the output.}
 }
 \value{
 List containing cost-effectiveness model parameter distributions.

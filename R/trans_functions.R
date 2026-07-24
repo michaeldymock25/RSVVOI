@@ -3,15 +3,16 @@
 #' @description Generates the parameter distributions for the transmission model parameters. Excludes strategy effectiveness parameters. Requires access to the Data folder containing data for the Australian population (size by age group) and the estimated mixing matrix (computed via the RSVModels package).
 #' @param N_draw Number of parameter draws to characterise distributions.
 #' @param seed Optional seed for replication. Default is NULL.
-#' @param path Path to the location of the Data and Parameters folders. Default is "." and may be used if the function is run inside the package.
+#' @param Data_path Path to the location of the Data folder. Default is "." and may be used if the function is run inside the package.
 #' @param save_output Logical. If set to TRUE, then the generated distributions will be saved into the Parameters folder. Default is FALSE.
+#' @param save_path Path to the location of the Parameters folder (or other location where output is to be saved). Default is "Parameters/trans_parms.rds" and may be used if the function is run inside the package. Only required if saving the output.
 #' @return List containing transmission model parameter distributions.
 #' @rdname gen_trans_parms
 #' @export
-gen_trans_parms <- function(N_draw, seed = NULL, path = ".", save_output = FALSE){
+gen_trans_parms <- function(N_draw, seed = NULL, Data_path = ".", save_output = FALSE, save_path = "Parameters/trans_parms.rds"){
   if(!is.null(seed)) set.seed(seed)
-  pop_agg <- read.csv(paste0(path, "/Data/australian_population_aggregated.csv"))
-  mixing <- read.csv(paste0(path, "/Data/mixing.csv"))
+  pop_agg <- read.csv(paste0(Data_path, "/Data/australian_population_aggregated.csv"))
+  mixing <- read.csv(paste0(Data_path, "/Data/mixing.csv"))
   trans_parms <- list(total_pop   = sum(pop_agg$population),
                       age_years   = c(seq(0, 5, 1/12), seq(10, 75, 5)),
                       age_months  = 12*c(seq(0, 5, 1/12), seq(10, 75, 5)),
@@ -29,7 +30,7 @@ gen_trans_parms <- function(N_draw, seed = NULL, path = ".", save_output = FALSE
                       kappa_V     = rbeta(N_draw, 10, 4.286),
                       dur_M       = sample(3:9, size = N_draw, replace = TRUE),
                       kappa_M     = rbeta(N_draw, 10, 1.765))
-  if(save_output) saveRDS(trans_parms, paste0(path, "/Parameters/trans_parms.rds"))
+  if(save_output) saveRDS(trans_parms, save_path)
   return(trans_parms)
 }
 

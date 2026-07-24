@@ -1,22 +1,37 @@
 
 ## the below code was run to assist the selection of the parameters for the probability distributions of the cost-effectiveness analysis parameters
 
+library(nleqslv)
 source("R/misc_functions.R")
 
 ## p_HP_I_NS
-comp_pars(dist = "beta", lower = 0.01, upper = 0.02, pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.10 , upper = 0.25, pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.05 , upper = 0.15, pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.03 , upper = 0.09, pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.01 , upper = 0.05, pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.01 , upper = 0.03, pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.005, upper = 0.02, pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.001, upper = 0.01, pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.1  , upper = 0.8 , pb = c(0.025, 0.975))
 
 ## p_ED_I
-comp_pars(dist = "beta", lower = 0.001, upper = 0.25, pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.10 , upper = 0.25 , pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.05 , upper = 0.15 , pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.03 , upper = 0.09 , pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.01 , upper = 0.05 , pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.01 , upper = 0.03 , pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.005, upper = 0.02 , pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.001, upper = 0.01 , pb = c(0.025, 0.975))
+comp_pars(dist = "beta", lower = 0.000, upper = 0.001, pb = c(0.025, 0.975))
 
 ## p_GP_I
-comp_pars(dist = "beta", lower = 0.01, upper = 0.50, pb = c(0.025, 0.975))
+## taken directly from Nazareno (2025)
 
 ## p_ICU_HP
-comp_pars(dist = "beta", lower = 0.02, upper = 0.05, pb = c(0.025, 0.975))
+## taken directly from Nazareno (2025)
 
-## p_D_ICU
-comp_pars(dist = "beta", lower = 0.0012, upper = 0.0084, pb = c(0.025, 0.975))
+## p_D_HP
+## taken directly from Nazareno (2025)
 
 ## p_waste
 comp_pars(dist = "beta", mn = 0.05, upper = 0.10, pb = 0.975)

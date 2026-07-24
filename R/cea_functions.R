@@ -1,34 +1,82 @@
 
+#' @title cea_parms_age_helper
+#' @description Helper function to generate the health economic parameter distributions. Allows for age-specific distributions.
+#' @param N_draw Number of parameter draws to characterise distributions.
+#' @param par_nm Name of the parameter to simulate.
+#' @return Named matrix containing age-specific parameter distributions.
+#' @rdname cea_parms_age_helper
+#' @export
+cea_parms_age_helper <- function(N_draw, par_nm){
+  ages <- c(seq(0, 5, 1/12), seq(10, 75, 5))
+  par_mat <- matrix(NA, nrow = N_draw, ncol = length(ages), dimnames = list(NULL, "age" = ages))
+  if(par_nm == "p_HP_I_NS"){
+    pars <- list(rbeta(N_draw, 15, 75) ,
+                 rbeta(N_draw, 12, 120),
+                 rbeta(N_draw, 10, 200),
+                 rbeta(N_draw, 6 , 200),
+                 rbeta(N_draw, 10, 700),
+                 rbeta(N_draw, 8 , 750),
+                 rbeta(N_draw, 3 , 800),
+                 rbeta(N_draw, 3 , 4))
+    inds <- rep(1:8, times = c(2, 1, 4, 6, 6, 6, 49, 1))
+  } else if(par_nm == "p_ED_I"){
+    pars <- list(rbeta(N_draw, 15, 75) ,
+                 rbeta(N_draw, 12, 120),
+                 rbeta(N_draw, 10, 200),
+                 rbeta(N_draw, 6 , 200),
+                 rbeta(N_draw, 10, 700),
+                 rbeta(N_draw, 8 , 750),
+                 rbeta(N_draw, 3 , 800),
+                 rbeta(N_draw, 1 , 500))
+    inds <- rep(1:8, times = c(2, 1, 4, 6, 6, 6, 35, 15))
+  } else if(par_nm == "p_GP_I"){
+    pars <- list(rbeta(N_draw, 10, 3)  ,
+                 rbeta(N_draw, 40, 60) ,
+                 rbeta(N_draw, 40, 70) ,
+                 rbeta(N_draw, 40, 100),
+                 rbeta(N_draw, 50, 200))
+    inds <- rep(1:5, times = c(6, 18, 36, 2, 13))
+  } else if(par_nm == "p_D_ICU"){
+    pars <- list(rbeta(N_draw, 60, 100000),
+                 rbeta(N_draw, 60, 2500),
+                 rbeta(N_draw, 60, 1000))
+    inds <- rep(1:3, times = c(60, 12, 3))
+  }
+  for(j in 1:length(ages)) par_mat[,j] <- pars[[inds[j]]]
+  return(par_mat)
+}
+
 #' @title gen_cea_parms
 #' @description Generates the parameter distributions for the health economic model parameters. Requires access to the Data folder containing data for the Australian life tables (life expectancy by age group) and the quality adjusted life year weights (QALYs by age group).
 #' @param N_draw Number of parameter draws to characterise distributions.
 #' @param seed Optional seed for replication. Default is NULL.
-#' @param path Path to the location of the Data and Parameters folders. Default is "." and may be used if the function is run inside the package.
+#' @param Data_path Path to the location of the Data folder. Default is "." and may be used if the function is run inside the package.
 #' @param save_output Logical. If set to TRUE, then the generated distributions will be saved into the Parameters folder. Default is FALSE.
+#' @param save_path Path to the location of the Parameters folder (or other location where output is to be saved). Default is "Parameters/cea_parms.rds" and may be used if the function is run inside the package. Only required if saving the output.
 #' @return List containing cost-effectiveness model parameter distributions.
 #' @rdname gen_cea_parms
 #' @export
-gen_cea_parms <- function(N_draw, seed = NULL, path = ".", save_output = FALSE){
+gen_cea_parms <- function(N_draw, seed = NULL, Data_path = ".", save_output = FALSE, save_path = "Parameters/cea_parms.rds"){
   if(!is.null(seed)) set.seed(seed)
-  lifetable <- read.csv(paste0(path, "/Data/australian_life_tables_111125.csv"))
+  lifetable <- read.csv(paste0(Data_path, "/Data/australian_life_tables_111125.csv"))
   lifetable$all_lx <- rowMeans(lifetable[, c("males_lx", "females_lx")])
   lifetable$all_Lx <- rowMeans(lifetable[, c("males_Lx", "females_Lx")])
-  age_qalys <- read.csv(paste0(path, "/Data/age_qalys.csv"))
+  age_qalys <- read.csv(paste0(Data_path, "/Data/age_qalys.csv"))
   lifetable <- merge(lifetable, age_qalys, by = "age")
   cea_parms <- list(lifetable = lifetable,
-                    p_HP_I_NS = rbeta(N_draw, 30, 2000),
-                    p_ED_I = rbeta(N_draw, 0.8, 10),
-                    p_GP_I = rbeta(N_draw, 1, 5),
-                    p_ICU_HP = rbeta(N_draw, 15, 500),
-                    p_D_ICU = rbeta(N_draw, 4, 1000),
+                    p_HP_I_NS = cea_parms_age_helper(N_draw, par_nm = "p_HP_I_NS"),
+                    p_ED_I = cea_parms_age_helper(N_draw, par_nm = "p_ED_I"),
+                    p_GP_I = cea_parms_age_helper(N_draw, par_nm = "p_GP_I"),
+                    p_ICU_HP = rbeta(N_draw, 15, 400),
+                    p_D_ICU = cea_parms_age_helper(N_draw, par_nm = "p_D_ICU"),
                     MV_dose_cost = runif(N_draw, 75, 370),
                     mAbs_dose_cost = runif(N_draw, 290, 660),
                     p_waste = rbeta(N_draw, 5, 95),
                     admin_cost = rgamma(N_draw, 150, 4),
                     GP_cost = rgamma(N_draw, 16, 0.4),
                     N_GP = sample(1:3, N_draw, replace = TRUE),
-                    NA_ED_cost = rgamma(N_draw, 15, 0.02),
                     Virology_cost = rgamma(N_draw, 15, 0.5),
+                    NA_ED_cost = rgamma(N_draw, 15, 0.02),
                     ED_cost = rgamma(N_draw, 15, 0.01),
                     HP_cost = rgamma(N_draw, 15, 0.002),
                     ICU_cost = rgamma(N_draw, 15, 0.0006),
@@ -39,7 +87,7 @@ gen_cea_parms <- function(N_draw, seed = NULL, path = ".", save_output = FALSE){
                     HP_dur = rgamma(N_draw, 27, 6)/365.25,
                     ICU_dur = rgamma(N_draw, 40, 4)/365.25,
                     discount = 0.05)
-  if(save_output) saveRDS(cea_parms, paste0(path, "/Parameters/cea_parms.rds"))
+  if(save_output) saveRDS(cea_parms, save_path)
   return(cea_parms)
 }
 
