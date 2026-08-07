@@ -91,3 +91,58 @@ comp_pars <- function(dist, mn = NULL, lower = NULL, upper = NULL, pb, N_sim = 1
   return(out)
 }
 
+#' @title beta_mean
+#' @description Computes the analytic mean of a Beta distribution.
+#' @param x Vector of length two containing the shape parameters.
+#' @return Scalar mean.
+#' @rdname beta_mean
+#' @export
+beta_mean <- function(x) x[1]/(x[1] + x[2])
+
+#' @title beta_prod_mean
+#' @description Computes the analytic mean of the product of two independent Beta distributions.
+#' @param x Vector of length two containing the shape parameters for the first Beta distribution.
+#' @param y Vector of length two containing the shape parameters for the second Beta distribution.
+#' @return Scalar mean.
+#' @rdname beta_prod_mean
+#' @export
+beta_prod_mean <- function(x, y) beta_mean(x)*beta_mean(y)
+
+#' @title beta_var
+#' @description Computes the analytic variance of a Beta distribution.
+#' @param x Vector of length two containing the shape parameters.
+#' @return Scalar variance.
+#' @rdname beta_var
+#' @export
+beta_var <- function(x) x[1]*x[2]/((x[1] + x[2])^2*(x[1] + x[2] + 1))
+
+#' @title beta_prod_var
+#' @description Computes the analytic variance of the product of two independent Beta distributions.
+#' @param x Vector of length two containing the shape parameters for the first Beta distribution.
+#' @param y Vector of length two containing the shape parameters for the second Beta distribution.
+#' @return Scalar variance.
+#' @rdname beta_prod_var
+#' @export
+beta_prod_var <- function(x, y) beta_var(x)*beta_var(y) + beta_var(x)*beta_mean(y)^2 + beta_var(y)*beta_mean(x)^2
+
+#' @title derive_conditional
+#' @description Derives the conditional distribution from the marginal distributions of a uni-directional probability tree by moment matching a Beta distribution.
+#' @param pars Two x two matrix containing the Beta distribution parameters (columns) for the marginal distributions (rows). Specify either pars OR mu AND sigma2. Default is NULL.
+#' @param mu Vector of length two containing the means of the marginal distributions. Specify either pars OR mu AND sigma2. Default is NULL.
+#' @param sigma2 Vector of length two containing the variances of the marginal distributions. Specify either pars OR mu AND sigma2. Default is NULL.
+#' @return Vector of length two containing the matched Beta distribution parameters for the conditional distribution.
+#' @rdname derive_conditional
+#' @export
+derive_conditional <- function(pars = NULL, mu = NULL, sigma2 = NULL){
+  if(( is.null(pars) &  (is.null(mu) | is.null(sigma2))) |
+     (!is.null(pars) & !(is.null(mu) & is.null(sigma2)))) stop("Specify either pars OR mu AND sigma2")
+  if(!is.null(pars)){
+    mu <- apply(pars, 1, beta_mean)
+    sigma2 <- apply(pars, 1, beta_var)
+  }
+  mu_cond <- mu[2]/mu[1]
+  sigma2_cond <- (sigma2[2] + mu[2]^2)/(sigma2[1] + mu[1]^2) - mu_cond^2
+  a_cond <- mu_cond*(mu_cond*(1 - mu_cond)/sigma2_cond - 1)
+  b_cond <- (1 - mu_cond)*(mu_cond*(1 - mu_cond)/sigma2_cond - 1)
+  return(c(a = a_cond, b = b_cond))
+}

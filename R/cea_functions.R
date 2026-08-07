@@ -16,23 +16,33 @@ cea_parms_age_helper <- function(N_draw, par_nm){
                  rbeta(N_draw, 30, 25) ,
                  rbeta(N_draw, 7 , 1))
     inds <- rep(1:5, times = c(60, 2, 5, 5, 3))
-  } else if(par_nm == "p_HP_SI_NS"){
-    pars <- list(rbeta(N_draw, 15, 75) ,
-                 rbeta(N_draw, 12, 120),
-                 rbeta(N_draw, 10, 200),
-                 rbeta(N_draw, 6 , 200),
-                 rbeta(N_draw, 10, 700),
-                 rbeta(N_draw, 8 , 750),
-                 rbeta(N_draw, 3 , 800),
-                 rbeta(N_draw, 6 , 8))
-    inds <- rep(1:8, times = c(2, 1, 4, 6, 6, 6, 49, 1))
-  } else if(par_nm == "p_GP_SI"){
+  } else if(par_nm == "p_MA_SI"){
     pars <- list(rbeta(N_draw, 20, 6)  ,
                  rbeta(N_draw, 40, 60) ,
                  rbeta(N_draw, 40, 70) ,
                  rbeta(N_draw, 40, 100),
                  rbeta(N_draw, 50, 200))
     inds <- rep(1:5, times = c(6, 18, 36, 2, 13))
+  } else if(par_nm == "p_ED_MA"){
+    pars <- list(rbeta(N_draw, 50, 50) ,
+                 rbeta(N_draw, 40, 60) ,
+                 rbeta(N_draw, 30, 60) ,
+                 rbeta(N_draw, 20, 60) ,
+                 rbeta(N_draw, 15, 90) ,
+                 rbeta(N_draw, 25, 170),
+                 rbeta(N_draw, 60, 550))
+    inds <- rep(1:7, times = c(2, 1, 3, 6, 6, 6, 51))
+  } else if(par_nm == "p_HP_ED_NS"){
+    pars <- list(rbeta(N_draw, 17, 22),
+                 rbeta(N_draw, 15, 35),
+                 rbeta(N_draw, 15, 60),
+                 rbeta(N_draw, 6 , 16),
+                 rbeta(N_draw, 30, 95),
+                 rbeta(N_draw, 10, 40),
+                 rbeta(N_draw, 3 , 25),
+                 rbeta(N_draw, 3 , 20),
+                 rbeta(N_draw, 3 , 12))
+    inds <- rep(1:9, times = c(2, 1, 3, 6, 6, 6, 36, 2, 13))
   } else if(par_nm == "p_D_ICU"){
     pars <- list(rbeta(N_draw, 60, 100000),
                  rbeta(N_draw, 60, 2500),
@@ -62,8 +72,9 @@ gen_cea_parms <- function(N_draw, seed = NULL, Data_path = ".", save_output = FA
   lifetable <- merge(lifetable, age_qalys, by = "age")
   cea_parms <- list(lifetable = lifetable,
                     p_SI_I = cea_parms_age_helper(N_draw, par_nm = "p_SI_I"),
-                    p_HP_SI_NS = cea_parms_age_helper(N_draw, par_nm = "p_HP_SI_NS"),
-                    p_GP_SI = cea_parms_age_helper(N_draw, par_nm = "p_GP_SI"),
+                    p_MA_SI = cea_parms_age_helper(N_draw, par_nm = "p_MA_SI"),
+                    p_ED_MA = cea_parms_age_helper(N_draw, par_nm = "p_ED_MA"),
+                    p_HP_ED_NS = cea_parms_age_helper(N_draw, par_nm = "p_HP_ED_NS"),
                     p_ICU_HP = rbeta(N_draw, 15, 400),
                     p_D_ICU = cea_parms_age_helper(N_draw, par_nm = "p_D_ICU"),
                     MV_dose_cost = runif(N_draw, 75, 370),
@@ -73,13 +84,14 @@ gen_cea_parms <- function(N_draw, seed = NULL, Data_path = ".", save_output = FA
                     GP_cost = rgamma(N_draw, 16, 0.4),
                     N_GP = sample(1:3, N_draw, replace = TRUE),
                     Virology_cost = rgamma(N_draw, 15, 0.5),
+                    NA_ED_cost = rgamma(N_draw, 15, 0.02),
                     ED_cost = rgamma(N_draw, 15, 0.01),
                     HP_cost = rgamma(N_draw, 15, 0.002),
                     ICU_cost = rgamma(N_draw, 15, 0.0006),
-                    GP_dis = rbeta(N_draw, 15, 80),
+                    GP_NA_ED_dis = rbeta(N_draw, 15, 80),
                     HP_dis = rbeta(N_draw, 9, 13),
                     ICU_dis = rbeta(N_draw, 6, 4),
-                    GP_dur = rgamma(N_draw, 15, 3)/365.25,
+                    GP_NA_ED_dur = rgamma(N_draw, 15, 3)/365.25,
                     HP_dur = rgamma(N_draw, 27, 6)/365.25,
                     ICU_dur = rgamma(N_draw, 40, 4)/365.25,
                     discount = 0.05)
@@ -100,26 +112,20 @@ gen_cea_parms <- function(N_draw, seed = NULL, Data_path = ".", save_output = FA
 eval_cea <- function(N_draw, inc_parms, cea_parms, ages, minimal = FALSE){
   states <- lapply(c("NS", "MV", "mAbs"), function(d){
     inc <- inc_parms[[d]]$inc[1:N_draw,,]
-    D <- GP <- HP <- SI <- array(NA, dim = dim(inc), dimnames = dimnames(inc))
+    D <- HP <- ED <- MA <- SI <- array(NA, dim = dim(inc), dimnames = dimnames(inc))
     for(j in 1:length(ages)) SI[,,j] <- inc[,,j]*cea_parms$p_SI_I[1:N_draw,j]
     No_SI <- inc - SI
-    for(j in 1:length(ages)){
-      p_HP_SI <- cea_parms[[paste0("p_HP_SI_", d)]][1:N_draw,j]
-      p_GP_SI <- cea_parms$p_GP_SI[1:N_draw,j]
-      p_MA_SI <- p_HP_SI + p_GP_SI
-      if(any(p_MA_SI > 1)){
-        p_HP_SI[p_MA_SI > 1] <- p_HP_SI[p_MA_SI > 1]/p_MA_SI[p_MA_SI > 1]
-        p_GP_SI[p_MA_SI > 1] <- p_GP_SI[p_MA_SI > 1]/p_MA_SI[p_MA_SI > 1]
-      }
-      HP[,,j] <- SI[,,j]*p_HP_SI
-      GP[,,j] <- SI[,,j]*p_GP_SI
-    }
-    No_MA <- SI - HP - GP
+    for(j in 1:length(ages)) MA[,,j] <- SI[,,j]*cea_parms$p_MA_SI[1:N_draw,j]
+    No_MA <- SI - MA
+    for(j in 1:length(ages)) ED[,,j] <- MA[,,j]*cea_parms$p_ED_MA[1:N_draw,j]
+    No_ED <- MA - ED
+    for(j in 1:length(ages)) HP[,,j] <- ED[,,j]*cea_parms[[paste0("p_HP_ED_", d)]][1:N_draw,j]
+    No_HP <- ED - HP
     ICU <- HP*cea_parms$p_ICU_HP[1:N_draw]
     No_ICU <- HP - ICU
     for(j in 1:length(ages)) D[,,j] <- ICU[,,j]*cea_parms$p_D_ICU[1:N_draw,j]
     No_D <- ICU - D
-    return(list(No_SI = No_SI, SI = SI, No_MA = No_MA, GP = GP, No_ICU = No_ICU, No_D = No_D, D = D))
+    return(list(No_SI = No_SI, No_MA = No_MA, No_ED = No_ED, No_HP = No_HP, No_ICU = No_ICU, No_D = No_D, D = D))
   })
   names(states) <- c("NS", "MV", "mAbs")
 
@@ -130,10 +136,11 @@ eval_cea <- function(N_draw, inc_parms, cea_parms, ages, minimal = FALSE){
     } else {
       strategy_cost <- inc_parms[[d]]$admin[1:N_draw,,]*(cea_parms[[paste0(d, "_dose_cost")]][1:N_draw]*(1 + cea_parms$p_waste[1:N_draw]) + cea_parms$admin_cost[1:N_draw])
     }
-    GP_cost <- (states_tmp$GP + states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*(cea_parms$N_GP[1:N_draw]*cea_parms$GP_cost[1:N_draw] + cea_parms$Virology_cost[1:N_draw])
-    No_ICU_cost <- (states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*(cea_parms$ED_cost[1:N_draw] + cea_parms$HP_cost[1:N_draw])
-    No_D_cost <- (states_tmp$No_D + states_tmp$D)*cea_parms$ICU_cost[1:N_draw]
-    total_cost <- strategy_cost + GP_cost + No_ICU_cost + No_D_cost
+    GP_cost <- (states_tmp$No_ED + states_tmp$No_HP + states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*(cea_parms$N_GP[1:N_draw]*cea_parms$GP_cost[1:N_draw] + cea_parms$Virology_cost[1:N_draw])
+    ED_cost <- states_tmp$No_HP*cea_parms$NA_ED_cost[1:N_draw] + (states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*cea_parms$ED_cost[1:N_draw]
+    HP_cost <- (states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*cea_parms$HP_cost[1:N_draw]
+    ICU_cost <- (states_tmp$No_D + states_tmp$D)*cea_parms$ICU_cost[1:N_draw]
+    total_cost <- strategy_cost + GP_cost + ED_cost + HP_cost + ICU_cost
     total_cost_disc <- aperm(apply(total_cost, c(1,3), function(x) x/(1 + cea_parms$discount)^(1:dim(total_cost)[2] - 1)), c(2, 1, 3))
     return(total_cost_disc)
   })
@@ -141,10 +148,10 @@ eval_cea <- function(N_draw, inc_parms, cea_parms, ages, minimal = FALSE){
 
   qalys <- lapply(c("NS", "MV", "mAbs"), function(d){
     states_tmp <- states[[d]]
-    GP_qaly <- -((states_tmp$GP + states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*cea_parms$GP_dis[1:N_draw]*cea_parms$GP_dur[1:N_draw])
-    No_ICU_qaly <- -((states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*cea_parms$HP_dis[1:N_draw]*cea_parms$HP_dur[1:N_draw])
-    No_D_qaly <- -((states_tmp$No_D + states_tmp$D)*cea_parms$ICU_dis[1:N_draw]*cea_parms$ICU_dur[1:N_draw])
-    alive_qaly <- GP_qaly + No_ICU_qaly + No_D_qaly
+    GP_NA_ED_qaly <- -((states_tmp$No_ED + states_tmp$No_HP + states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*cea_parms$GP_NA_ED_dis[1:N_draw]*cea_parms$GP_NA_ED_dur[1:N_draw])
+    HP_qaly <- -((states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*cea_parms$HP_dis[1:N_draw]*cea_parms$HP_dur[1:N_draw])
+    ICU_qaly <- -((states_tmp$No_D + states_tmp$D)*cea_parms$ICU_dis[1:N_draw]*cea_parms$ICU_dur[1:N_draw])
+    alive_qaly <- GP_NA_ED_qaly + HP_qaly + ICU_qaly
     alive_qaly_disc <- aperm(apply(alive_qaly, c(1,3), function(x) x/(1 + cea_parms$discount)^(1:dim(alive_qaly)[2] - 1)), c(2, 1, 3))
     D_age_disc <- sapply(1:length(ages), function(i){
       fut_Ql <- cea_parms$lifetable[cea_parms$lifetable$age >= ages[i], "qaly"]
