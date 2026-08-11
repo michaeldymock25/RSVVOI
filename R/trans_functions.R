@@ -124,18 +124,25 @@ run_trans_models <- function(N_draw, y0, trans_parms, years, batch_size = NULL, 
       y0_tmp <- y0
     } else {
       y0_old <- y0
-      y0_tmp <- array(data = 0, dim = c(N_draw, 75, 6))
+      y0_tmp <- array(data = 0, dim = c(N_draw, 75, 7))
       y0_tmp[,,c(1:4, 6)] <- y0_old
+      mod_str <- ifelse(mod == "vax", "V", "M")
     }
-    mod_out <- mod_funs[[mod]](y0 = y0_tmp, max_time = years*12, parms = trans_parms, N_sim = N_draw, batch_size = batch_size, ncores = ncores, minimal = TRUE)
-    inc <- aperm(apply(mod_out[,,,"Incidence"], c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))), c(2, 1, 3))
-    dimnames(inc) <- list("simulation" = dimnames(inc)[[1]], "year" = paste("year", 1:years), "age" = dimnames(inc)[[3]])
+    mod_out <- mod_funs[[mod]](y0 = y0_tmp, max_time = years*12, parms = trans_parms, N_sim = N_draw,
+                               batch_size = batch_size, ncores = ncores, minimal = TRUE)
     if(mod == "base"){
+      inc <- aperm(apply(mod_out[,,,"Incidence"], c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))), c(2, 1, 3))
+      dimnames(inc) <- list("simulation" = dimnames(inc)[[1]], "year" = paste("year", 1:years), "age" = dimnames(inc)[[3]])
       return(list(inc = inc))
     } else {
-      admin <- aperm(apply(mod_out[,,,1], c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))), c(2, 1, 3))
+      inc <- aperm(apply(mod_out[,,,"Incidence"], c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))), c(2, 1, 3))
+      dimnames(inc) <- list("simulation" = dimnames(inc)[[1]], "year" = paste("year", 1:years), "age" = dimnames(inc)[[3]])
+      inc_strat <- aperm(apply(mod_out[,,,paste0("Incidence_", mod_str)], c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))),
+                         c(2, 1, 3))
+      dimnames(inc_strat) <- list("simulation" = dimnames(inc_strat)[[1]], "year" = paste("year", 1:years), "age" = dimnames(inc_strat)[[3]])
+      admin <- aperm(apply(mod_out[,,,mod_str], c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))), c(2, 1, 3))
       dimnames(admin) <- list("simulation" = dimnames(admin)[[1]], "year" = paste("year", 1:years), "age" = dimnames(admin)[[3]])
-      return(list(inc = inc, admin = admin))
+      return(list(inc = inc, inc_strat = inc_strat, admin = admin))
     }
   })
   names(out) <- c("NS", "MV", "mAbs")

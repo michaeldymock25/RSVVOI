@@ -112,19 +112,52 @@ gen_cea_parms <- function(N_draw, seed = NULL, Data_path = ".", save_output = FA
 eval_cea <- function(N_draw, inc_parms, cea_parms, ages, minimal = FALSE){
   states <- lapply(c("NS", "MV", "mAbs"), function(d){
     inc <- inc_parms[[d]]$inc[1:N_draw,,]
-    D <- HP <- ED <- MA <- SI <- array(NA, dim = dim(inc), dimnames = dimnames(inc))
-    for(j in 1:length(ages)) SI[,,j] <- inc[,,j]*cea_parms$p_SI_I[1:N_draw,j]
-    No_SI <- inc - SI
-    for(j in 1:length(ages)) MA[,,j] <- SI[,,j]*cea_parms$p_MA_SI[1:N_draw,j]
-    No_MA <- SI - MA
-    for(j in 1:length(ages)) ED[,,j] <- MA[,,j]*cea_parms$p_ED_MA[1:N_draw,j]
-    No_ED <- MA - ED
-    for(j in 1:length(ages)) HP[,,j] <- ED[,,j]*cea_parms[[paste0("p_HP_ED_", d)]][1:N_draw,j]
-    No_HP <- ED - HP
-    ICU <- HP*cea_parms$p_ICU_HP[1:N_draw]
+    if(d == "NS"){
+      D <- ICU <- HP <- ED <- MA <- SI <- array(NA, dim = dim(inc), dimnames = dimnames(inc))
+      for(j in 1:length(ages)){
+        SI[,,j]  <- inc[,,j]*cea_parms$p_SI_I[1:N_draw,j]
+        MA[,,j]  <- SI[,,j]*cea_parms$p_MA_SI[1:N_draw,j]
+        ED[,,j]  <- MA[,,j]*cea_parms$p_ED_MA[1:N_draw,j]
+        HP[,,j]  <- ED[,,j]*cea_parms$p_HP_ED_NS[1:N_draw,j]
+        ICU[,,j] <- HP[,,j]*cea_parms$p_ICU_HP[1:N_draw]
+        D[,,j]   <- ICU[,,j]*cea_parms$p_D_ICU[1:N_draw,j]
+      }
+    } else {
+      inc_strat <- inc_parms[[d]]$inc_strat[1:N_draw,,]
+      inc_nstrat <- inc - inc_strat
+      D_strat <- ICU_strat <- HP_strat <- ED_strat <- MA_strat <- SI_strat <- array(NA, dim = dim(inc), dimnames = dimnames(inc))
+      D_nstrat <- ICU_nstrat <- HP_nstrat <- ED_nstrat <- MA_nstrat <- SI_nstrat <- array(NA, dim = dim(inc), dimnames = dimnames(inc))
+      for(j in 1:length(ages)){
+        SI_strat[,,j]   <- inc_strat[,,j]*cea_parms$p_SI_I[1:N_draw,j]
+        SI_nstrat[,,j]  <- inc_nstrat[,,j]*cea_parms$p_SI_I[1:N_draw,j]
+        MA_strat[,,j]   <- SI_strat[,,j]*cea_parms$p_MA_SI[1:N_draw,j]
+        MA_nstrat[,,j]  <- SI_nstrat[,,j]*cea_parms$p_MA_SI[1:N_draw,j]
+        ED_strat[,,j]   <- MA_strat[,,j]*cea_parms$p_ED_MA[1:N_draw,j]
+        ED_nstrat[,,j]  <- MA_nstrat[,,j]*cea_parms$p_ED_MA[1:N_draw,j]
+        HP_strat[,,j]   <- ED_strat[,,j]*cea_parms[[paste0("p_HP_ED_", d)]][1:N_draw,j]
+        HP_nstrat[,,j]  <- ED_nstrat[,,j]*cea_parms$p_HP_ED_NS[1:N_draw,j]
+        ICU_strat[,,j]  <- HP_strat[,,j]*cea_parms$p_ICU_HP[1:N_draw]
+        ICU_nstrat[,,j] <- HP_nstrat[,,j]*cea_parms$p_ICU_HP[1:N_draw]
+        D_strat[,,j]    <- ICU_strat[,,j]*cea_parms$p_D_ICU[1:N_draw,j]
+        D_nstrat[,,j]   <- ICU_nstrat[,,j]*cea_parms$p_D_ICU[1:N_draw,j]
+      }
+      SI  <- SI_strat + SI_nstrat
+      MA  <- MA_strat + MA_nstrat
+      ED  <- ED_strat + ED_nstrat
+      HP  <- HP_strat + HP_nstrat
+      ICU <- ICU_strat + ICU_nstrat
+      D   <- D_strat + D_nstrat
+    }
+    No_SI  <- inc - SI
+    No_MA  <- SI - MA
+    No_ED  <- MA - ED
+    No_HP  <- ED - HP
     No_ICU <- HP - ICU
-    for(j in 1:length(ages)) D[,,j] <- ICU[,,j]*cea_parms$p_D_ICU[1:N_draw,j]
-    No_D <- ICU - D
+    No_D   <- ICU - D
+    rm(inc, SI, MA, ED, HP, ICU)
+    if(d != "NS") rm(inc_strat, inc_nstrat, SI_strat, SI_nstrat, MA_strat, MA_nstrat, ED_strat, ED_nstrat,
+                     HP_strat, HP_nstrat, ICU_strat, ICU_nstrat, D_strat, D_nstrat)
+    gc()
     return(list(No_SI = No_SI, No_MA = No_MA, No_ED = No_ED, No_HP = No_HP, No_ICU = No_ICU, No_D = No_D, D = D))
   })
   names(states) <- c("NS", "MV", "mAbs")
