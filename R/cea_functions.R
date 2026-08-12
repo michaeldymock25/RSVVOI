@@ -164,10 +164,9 @@ eval_cea <- function(N_draw, inc_parms, cea_parms, ages, minimal = FALSE){
 
   costs <- lapply(c("NS", "MV", "mAbs"), function(d){
     states_tmp <- states[[d]]
-    if(d == "NS"){
-      strategy_cost <- 0*inc_parms[[d]]$inc[1:N_draw,,]
-    } else {
-      strategy_cost <- inc_parms[[d]]$admin[1:N_draw,,]*(cea_parms[[paste0(d, "_dose_cost")]][1:N_draw]*(1 + cea_parms$p_waste[1:N_draw]) + cea_parms$admin_cost[1:N_draw])
+    strategy_cost <- 0*inc_parms[[d]]$inc[1:N_draw,,]
+    if(d != "NS"){
+      strategy_cost[,,1] <- inc_parms[[d]]$admin[1:N_draw,]*(cea_parms[[paste0(d, "_dose_cost")]][1:N_draw]*(1 + cea_parms$p_waste[1:N_draw]) + cea_parms$admin_cost[1:N_draw])
     }
     GP_cost <- (states_tmp$No_ED + states_tmp$No_HP + states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*(cea_parms$N_GP[1:N_draw]*cea_parms$GP_cost[1:N_draw] + cea_parms$Virology_cost[1:N_draw])
     ED_cost <- states_tmp$No_HP*cea_parms$NA_ED_cost[1:N_draw] + (states_tmp$No_ICU + states_tmp$No_D + states_tmp$D)*cea_parms$ED_cost[1:N_draw]
