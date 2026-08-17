@@ -60,32 +60,52 @@ mean_and_quant_to_pars <- function(dist, mn, quant, pb, N_sim){
     lambda <- uniroot(f, lower = low_root, upper = upp_root)$root
     sol <- c(mn*lambda, lambda)
     sam <- rgamma(N_sim, sol[1], rate = sol[2])
+  } else if(dist == "gamma_shift"){
+    sigma <- (quant[2] - quant[1])/(qnorm(pb[2]) - qnorm(pb[1]))
+    alpha0 <- (mn/sigma)^2
+    beta0 <- mn/sigma^2
+    delta0 <- quant[1] - qgamma(pb[1], alpha0, rate = beta0)
+    init_vals <- c(log(alpha0), log(beta0), delta0)
+    f <- function(pars)
+      pars[3] + c(exp(pars[1])/exp(pars[2]) - mn,
+                  qgamma(pb[1], exp(pars[1]), rate = exp(pars[2])) - quant[1],
+                  qgamma(pb[2], exp(pars[1]), rate = exp(pars[2])) - quant[2])
+    sol <- nleqslv(init_vals, f)$x
+    sol[1:2] <- exp(sol[1:2])
+    sam <- sol[3] + rgamma(N_sim, sol[1], rate = sol[2])
   }
   return(list(pars = sol, mean = mean(sam), int = quantile(sam, prob = pb)))
 }
 
 #' @title comp_pars
 #' @import nleqslv
-#' @description Computes parameters for either a Beta or Gamma distribution using either a mean and single quantile or an interval. Uses a normal approximation and method of moments to generate reasonable initial values then solves numerically.
-#' @param dist Either "beta" or "gamma" to specify distribution.
-#' @param mn Distribution mean. If specified then only one of lower or upper may also be specified. Default is NULL.
-#' @param lower Lower bound of interval. If specified then only one of mean or upper may also be specified. Default is NULL.
-#' @param upper Upper bound of interval. If specified then only one of mean or lower may also be specified. Default is NULL.
+#' @description Computes parameters for either a Beta, Gamma or Shifted-Gamma distribution using either a mean and single quantile or an interval. Uses a normal approximation and method of moments to generate reasonable initial values then solves numerically.
+#' @param dist Either "beta", "gamma", or "gamma_shift" to specify distribution.
+#' @param mn Distribution mean. If specified then only one of lower or upper may also be specified, unless fitting a Shifted-Gamma distribution. Default is NULL.
+#' @param lower Lower bound of interval. If specified then only one of mean or upper may also be specified, unless fitting a Shifted-Gamma distribution. Default is NULL.
+#' @param upper Upper bound of interval. If specified then only one of mean or lower may also be specified, unless fitting a Shifted-Gamma distribution. Default is NULL.
 #' @param pb Probability bound/s. If using two quantiles then pb must be a vector of length two with the upper and lower probability bounds. If using the mean and a single quantile then must be a scalar with the corresponding quantile.
 #' @param N_sim Number of simulations used to validate solution. Default is 100000.
-#' @return List containing parameter solution (shape and rate parameters if Gamma) with sampled mean and interval to validate solution.
+#' @return List containing parameter solution (shape and rate parameters if Gamma or Shifted-Gamma) with sampled mean and interval to validate solution.
 #' @rdname comp_pars
 #' @export
 comp_pars <- function(dist, mn = NULL, lower = NULL, upper = NULL, pb, N_sim = 100000){
-  if(!(dist %in% c("beta", "gamma"))) stop("dist must be either beta or gamma.")
-  if(as.integer(!is.null(mn)) +
-     as.integer(!is.null(lower)) +
-     as.integer(!is.null(upper)) != 2) stop("Only two out of mn, lower and upper may be specified.")
-  if(!is.null(mn) & length(pb) > 1) stop("pb must be a scalar if mn is specified.")
+  if(!(dist %in% c("beta", "gamma", "gamma_shift"))) stop("dist must be either beta, gamma, or gamma_shift.")
+  if(dist %in% c("beta", "gamma") &
+     (as.integer(!is.null(mn)) +
+      as.integer(!is.null(lower)) +
+      as.integer(!is.null(upper)) != 2)) stop("Only two out of mn, lower, and upper may be specified if fitting a Beta or Gamma distribution.")
+  if(dist == "gamma_shift" &
+     (as.integer(!is.null(mn)) +
+      as.integer(!is.null(lower)) +
+      as.integer(!is.null(upper)) != 3)) stop("Must specify mn, lower, and upper if fitting a Shifted-Gamma distribution.")
+  if(dist %in% c("beta", "gamma") & !is.null(mn) & length(pb) > 1)
+    stop("pb must be a scalar if fitting a Beta or Gamma distribution and mn is specified.")
   if(is.null(mn)){
     out <- quants_to_pars(dist = dist, lower = lower, upper = upper, pb = pb, N_sim = N_sim)
   } else {
-    quant <- ifelse(!is.null(lower), lower, upper)
+    if(dist %in% c("beta", "gamma")) quant <- ifelse(!is.null(lower), lower, upper)
+    if(dist == "gamma_shift") quant <- c(lower, upper)
     out <- mean_and_quant_to_pars(dist = dist, mn = mn, quant = quant, pb = pb, N_sim = N_sim)
   }
   return(out)

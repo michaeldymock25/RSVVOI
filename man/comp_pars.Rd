@@ -7,21 +7,21 @@
 comp_pars(dist, mn = NULL, lower = NULL, upper = NULL, pb, N_sim = 1e+05)
 }
 \arguments{
-\item{dist}{Either "beta" or "gamma" to specify distribution.}
+\item{dist}{Either "beta", "gamma", or "gamma_shift" to specify distribution.}
 
-\item{mn}{Distribution mean. If specified then only one of lower or upper may also be specified. Default is NULL.}
+\item{mn}{Distribution mean. If specified then only one of lower or upper may also be specified, unless fitting a Shifted-Gamma distribution. Default is NULL.}
 
-\item{lower}{Lower bound of interval. If specified then only one of mean or upper may also be specified. Default is NULL.}
+\item{lower}{Lower bound of interval. If specified then only one of mean or upper may also be specified, unless fitting a Shifted-Gamma distribution. Default is NULL.}
 
-\item{upper}{Upper bound of interval. If specified then only one of mean or lower may also be specified. Default is NULL.}
+\item{upper}{Upper bound of interval. If specified then only one of mean or lower may also be specified, unless fitting a Shifted-Gamma distribution. Default is NULL.}
 
 \item{pb}{Probability bound/s. If using two quantiles then pb must be a vector of length two with the upper and lower probability bounds. If using the mean and a single quantile then must be a scalar with the corresponding quantile.}
 
 \item{N_sim}{Number of simulations used to validate solution. Default is 100000.}
 }
 \value{
-List containing parameter solution (shape and rate parameters if Gamma) with sampled mean and interval to validate solution.
+List containing parameter solution (shape and rate parameters if Gamma or Shifted-Gamma) with sampled mean and interval to validate solution.
 }
 \description{
-Computes parameters for either a Beta or Gamma distribution using either a mean and single quantile or an interval. Uses a normal approximation and method of moments to generate reasonable initial values then solves numerically.
+Computes parameters for either a Beta, Gamma or Shifted-Gamma distribution using either a mean and single quantile or an interval. Uses a normal approximation and method of moments to generate reasonable initial values then solves numerically.
 }

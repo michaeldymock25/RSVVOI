@@ -56,6 +56,14 @@ derive_conditional(mu     = c(beta_prod_mean(x = c(60, 550), y = c(50, 200)), be
 ## p_D_HP
 ## taken directly from Nazareno (2025)
 
+## MV dose cost
+
+comp_pars(dist = "gamma_shift", mn = 160, lower = 75, upper = 370, pb = c(0.01, 0.99))
+
+## mAbs dose cost
+
+comp_pars(dist = "gamma_shift", mn = 290, lower = 232, upper = 660, pb = c(0.01, 0.99))
+
 ## p_waste
 comp_pars(dist = "beta", mn = 0.05, upper = 0.10, pb = 0.975)
 
