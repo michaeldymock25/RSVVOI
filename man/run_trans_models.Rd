@@ -4,7 +4,15 @@
 \alias{run_trans_models}
 \title{run_trans_models}
 \usage{
-run_trans_models(N_draw, y0, trans_parms, years, batch_size = NULL, ncores = 1)
+run_trans_models(
+  N_draw,
+  y0,
+  trans_parms,
+  years,
+  subsets = 1,
+  batch_size = NULL,
+  ncores = 1
+)
 }
 \arguments{
 \item{N_draw}{Number of simulated runs.}
@@ -14,6 +22,8 @@ run_trans_models(N_draw, y0, trans_parms, years, batch_size = NULL, ncores = 1)
 \item{trans_parms}{Transmission model parameters.}
 
 \item{years}{Number of years to run the model.}
+
+\item{subsets}{Number of subsets to run the models. Default is one. Increase to manage memory workload. Must be a factor of N_draw.}
 
 \item{batch_size}{Size of each batch to run in parallel. Default is NULL, which is then set to ceiling(N_draw/ncores). Reduce to manage memory workload.}
 
