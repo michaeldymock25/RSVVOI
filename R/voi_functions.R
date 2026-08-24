@@ -70,6 +70,7 @@ prep_dat_evsi <- function(p_d, N, p_alloc, MM = FALSE, Q = NULL, exact = TRUE, s
 #' @import mgcv
 #' @import RhpcBLASctl
 #' @import stats
+#' @import utils
 #' @param INMB Named list containing incremental net monetary benefit for each willingness-to-pay threshold.
 #' @param dat Named matrix of simulated data summaries.
 #' @param method Approximation method. Either NP for non-parametric regression or MM for moment matching. The moment matching method requires the evppi function to be run in advance using the non-parametric regression method to generate INMB_partial. Default is NP.
@@ -78,20 +79,22 @@ prep_dat_evsi <- function(p_d, N, p_alloc, MM = FALSE, Q = NULL, exact = TRUE, s
 #' @param hyper_parms Hyperparameters. Must be a named list ("NS", "MV", "mAbs") with named elements ("a", "b") for "NS" and ("mu", "sigma") for "MV" and "mAbs". Only required for the moment matching method. Default is NULL.
 #' @param OR Logical. If set to TRUE, the odds ratio model will be used. Otherwise, the relative risk model will be used. Only required for the moment matching method. Default is TRUE.
 #' @param MCMC Logical. If set to TRUE, posterior will be estimated using Markov Chain Monte-Carlo. Otherwise, a Laplace approximation will be used (not currently available).  Only required for the moment matching method. Default is TRUE.
-#' @param ncores Number of cores to utilise. Will be used to determine the number of chains to run in parallel. Only required for the moment matching method. Default is ten.
+#' @param ncores Number of cores to utilise. Will be used to determine the number of chains to run in parallel. Only required for the moment matching method. Default is NULL.
+#' @param ncores_mcmc Number of cores to utilise for running MCMC. Will be used to determine the number of chains to run in parallel. Only required for the moment matching method. Default is NULL.
 #' @param trans_parms Transmission model parameters. Only required for the moment matching method. Default is NULL.
 #' @param y0_burn Array of initial values for the transmission models. Must be of dimension c(N_draw, 75 (age groups), 5 (SEIR + 1)). Only required for the moment matching method. Default is NULL.
 #' @param years Number of years to run the transmission models. Only required for the moment matching method. Default is NULL.
+#' @param subsets Number of subsets to run the models. Only required for the moment matching method. Default is NULL. Increase to manage memory workload. Must be a factor of N_draw.
 #' @param cea_parms Health economic parameter distributions. Only required for the moment matching method. Default is NULL.
 #' @param WTP Vector containing willingness-to-pay thresholds. Only required for the moment matching method. Default is NULL.
-#' @param ref Reference group to use for the increments when computing the incremental net monetary benefit. Only required for the moment matching method. Default is "NS".
 #' @param INMB_partial Samples of INMB for the parameters of interest generated from the evppi function using the non-parametric regression approximation method. Only required for the moment matching approximation method. Default is NULL.
 #' @param seed Optional seed for replication. Default is NULL.
 #' @return Expected value of sample information
 #' @rdname evsi
 #' @export
-evsi <- function(INMB, dat, method = "NP", model = NULL, alpha = NULL, hyper_parms = NULL, OR = TRUE, MCMC = TRUE, ncores = 10,
-                 trans_parms = NULL, y0_burn = NULL, years = NULL, cea_parms = NULL, WTP = NULL, ref = "NS", INMB_partial = NULL, seed = NULL){
+evsi <- function(INMB, dat, method = "NP", model = NULL, alpha = NULL, hyper_parms = NULL, OR = TRUE, MCMC = TRUE,
+                 ncores = NULL, ncores_mcmc = NULL, trans_parms = NULL, y0_burn = NULL, years = NULL, subsets = NULL,
+                 cea_parms = NULL, WTP = NULL, INMB_partial = NULL, seed = NULL){
   if(!is.null(seed)) set.seed(seed)
   N_draw <- unique(sapply(INMB, nrow))
   D <- unique(sapply(INMB, ncol))
@@ -106,24 +109,27 @@ evsi <- function(INMB, dat, method = "NP", model = NULL, alpha = NULL, hyper_par
     }
   } else if(method == "MM"){
     var_est <- list()
-    trans_parms_tmp <- trans_parms
-    cea_parms_tmp <- cea_parms
     for(i in 1:nrow(dat)){
-      postr_MA <- upt_posterior(n = dat[i, c("n_NS_MA", "n_MV_MA", "n_mAbs_MA")], y = dat[i, c("y_NS_MA", "y_MV_MA", "y_mAbs_MA")],
-                                alpha = alpha, hyper_parms = hyper_parms[["MA"]], OR = OR, N_draw = N_draw, MCMC = MCMC, nchains = ncores)
-      postr_HP <- upt_posterior(n = dat[i, c("n_NS_HP", "n_MV_HP", "n_mAbs_HP")], y = dat[i, c("y_NS_HP", "y_MV_HP", "y_mAbs_HP")],
-                                alpha = alpha, hyper_parms = hyper_parms[["HP"]], OR = OR, N_draw = N_draw, MCMC = MCMC, nchains = ncores)
+      cat("Evaluating model at dataset", i, "of", nrow(dat), "at", as.character(Sys.time()), "\n")
+      trans_parms_tmp <- trans_parms
+      drp <- utils::capture.output(postr_MA <- upt_posterior(n = dat[i, c("n_NS_MA", "n_MV_MA", "n_mAbs_MA")],
+                                                             y = dat[i, c("y_NS_MA", "y_MV_MA", "y_mAbs_MA")],
+                                                             alpha = alpha, hyper_parms = hyper_parms[["MA"]], OR = OR,
+                                                             N_draw = N_draw, MCMC = MCMC, nchains = ncores_mcmc))
+      drp <- utils::capture.output(postr_HP <- upt_posterior(n = dat[i, c("n_NS_HP", "n_MV_HP", "n_mAbs_HP")],
+                                                             y = dat[i, c("y_NS_HP", "y_MV_HP", "y_mAbs_HP")],
+                                                             alpha = alpha, hyper_parms = hyper_parms[["HP"]], OR = OR,
+                                                             N_draw = N_draw, MCMC = MCMC, nchains = ncores_mcmc))
       trans_parms_tmp[c("rho_V", "rho_M")] <-  list("rho_V" = 1 - postr_MA[,"r_MV"], "rho_M" = 1 - postr_MA[,"r_mAbs"])
-      inc_parms <- run_trans_models(N_draw = N_draw, y0 = y0_burn, trans_parms = trans_parms_tmp, years = years, ncores = ncores)
-      cea_parms_tmp[c("p_HP_I_MV", "p_HP_I_mAbs")] <- list("p_HP_I_MV" = cea_parms$p_HP_I_NS*postr_HP[,"r_MV"], "p_HP_I_mAbs" = cea_parms$p_HP_I_NS*postr_HP[,"r_mAbs"])
-      cea_out <- eval_cea(N_draw = N_draw, inc_parms = inc_parms, cea_parms = cea_parms_tmp, ages = trans_parms$age_years)
-      INMB_tmp <- eval_INMB(cea_out, WTP = WTP, ref = ref)
+      inc_parms <- run_trans_models(N_draw = N_draw, y0 = y0_burn, trans_parms = trans_parms_tmp, years = years, subsets = subsets, ncores = ncores)
+      cea <- eval_cea(N_draw = N_draw, inc_parms = inc_parms, cea_parms = cea_parms, ages = trans_parms$age_years, minimal = TRUE)
+      INMB_tmp <- eval_INMB(cea, WTP = WTP, years = years, max_age_ind = max(which(trans_parms$age_years < 5)))
       var_est[[i]] <- lapply(INMB_tmp, function(x) var(x[,-1]))
     }
     EVSI <- lapply(1:length(INMB), function(i){
                prior_var <- var(INMB[[i]][,-1])
                mu_mn <- colMeans(INMB[[i]][,-1])
-               mu_var <- prior_var - Reduce("+", lapply(var_est, function(x) x[[i]]))/Q
+               mu_var <- prior_var - Reduce("+", lapply(var_est, function(x) x[[i]]))/length(var_est)
                mu_var_eigen <- eigen(mu_var)
                mu_var_sqrt <- mu_var_eigen$vectors%*%diag(sqrt(mu_var_eigen$values))%*%t(mu_var_eigen$vectors)
                prior_var_eigen <- eigen(prior_var)

@@ -13,13 +13,14 @@ evsi(
   hyper_parms = NULL,
   OR = TRUE,
   MCMC = TRUE,
-  ncores = 10,
+  ncores = NULL,
+  ncores_mcmc = NULL,
   trans_parms = NULL,
   y0_burn = NULL,
   years = NULL,
+  subsets = NULL,
   cea_parms = NULL,
   WTP = NULL,
-  ref = "NS",
   INMB_partial = NULL,
   seed = NULL
 )
@@ -41,7 +42,9 @@ evsi(
 
 \item{MCMC}{Logical. If set to TRUE, posterior will be estimated using Markov Chain Monte-Carlo. Otherwise, a Laplace approximation will be used (not currently available).  Only required for the moment matching method. Default is TRUE.}
 
-\item{ncores}{Number of cores to utilise. Will be used to determine the number of chains to run in parallel. Only required for the moment matching method. Default is ten.}
+\item{ncores}{Number of cores to utilise. Will be used to determine the number of chains to run in parallel. Only required for the moment matching method. Default is NULL.}
+
+\item{ncores_mcmc}{Number of cores to utilise for running MCMC. Will be used to determine the number of chains to run in parallel. Only required for the moment matching method. Default is NULL.}
 
 \item{trans_parms}{Transmission model parameters. Only required for the moment matching method. Default is NULL.}
 
@@ -49,11 +52,11 @@ evsi(
 
 \item{years}{Number of years to run the transmission models. Only required for the moment matching method. Default is NULL.}
 
+\item{subsets}{Number of subsets to run the models. Only required for the moment matching method. Default is NULL. Increase to manage memory workload. Must be a factor of N_draw.}
+
 \item{cea_parms}{Health economic parameter distributions. Only required for the moment matching method. Default is NULL.}
 
 \item{WTP}{Vector containing willingness-to-pay thresholds. Only required for the moment matching method. Default is NULL.}
-
-\item{ref}{Reference group to use for the increments when computing the incremental net monetary benefit. Only required for the moment matching method. Default is "NS".}
 
 \item{INMB_partial}{Samples of INMB for the parameters of interest generated from the evppi function using the non-parametric regression approximation method. Only required for the moment matching approximation method. Default is NULL.}
 
