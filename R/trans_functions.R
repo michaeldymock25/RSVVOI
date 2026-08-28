@@ -101,7 +101,7 @@ run_trans_models <- function(N_draw, y0, trans_parms, years, subsets = 1, batch_
       if(mod == "NS"){
         y0_tmp <- y0_j
       } else {
-        y0_tmp <- array(data = 0, dim = c(N_draw, 75, 7))
+        y0_tmp <- array(data = 0, dim = c(N_draw/subsets, 75, 7))
         y0_tmp[,,c(1:4, 6)] <- y0_j
         mod_str <- ifelse(mod == "MV", "V", "M")
       }
