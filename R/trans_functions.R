@@ -116,7 +116,7 @@ run_trans_models <- function(N_draw, y0, trans_parms, years, subsets = 1, batch_
         inc_strat <- aperm(apply(mod_out[,,,paste0("Incidence_", mod_str)], c(1,3), function(x) colSums(matrix(x, nrow = 12, ncol = years))),
                            c(2, 1, 3))
         dimnames(inc_strat) <- list("simulation" = dimnames(inc_strat)[[1]], "year" = paste("year", 1:years), "age" = dimnames(inc_strat)[[3]])
-        admin <- array(rep(trans_parms_j[[paste0("kappa_", mod_str)]]*trans_parms_j$size_months[1], years), dim = c(N_draw/subsets, years),
+        admin <- array(rep(trans_parms_j[[paste0("kappa_", mod_str)]]*trans_parms_j$size_months[1]*12, years), dim = c(N_draw/subsets, years),
                        dimnames = list("simulation" = dimnames(inc)[[1]], "year" = paste("year", 1:years)))
         out[[mod]]$inc_strat[start:end,,] <- inc_strat
         out[[mod]]$admin[start:end,] <- admin

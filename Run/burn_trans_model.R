@@ -3,11 +3,12 @@
 
 library(RSVModels)
 
+source("R/psa_functions.R")
 source("R/trans_functions.R")
 
-N_draw <- 100000
+N_draw <- 10000
 seed <- 35234
-ncores <- 8
+ncores <- 16
 trans_parms <- gen_trans_parms(N_draw = N_draw, seed = seed)
 y0_burn <- burn_trans_model(N_draw = N_draw, trans_parms = trans_parms, burn_batch_size = 20, ncores = ncores)
 
